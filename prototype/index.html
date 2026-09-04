@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BloodBridge AI</title>
+<style>
+  :root{
+    --red:#C31F2E; --red-dark:#8F1620; --red-50:#FDECEE;
+    --teal:#0F766E; --teal-50:#E6F5F3;
+    --amber:#B4740E; --amber-50:#FBF0DD;
+    --ink:#1B1B1D; --ink-soft:#5B5B58; --ink-faint:#8B8B87;
+    --line:#E7E5E0; --bg:#FFFFFF; --bg-soft:#FAFAF8;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg-soft);color:var(--ink);
+    font-family:'Inter',system-ui,-apple-system,Segoe UI,sans-serif;-webkit-font-smoothing:antialiased;}
+  h1,h2,.display{font-family:'Space Grotesk',system-ui,sans-serif;}
+  .app{max-width:480px;margin:0 auto;min-height:100vh;background:var(--bg);display:flex;flex-direction:column;position:relative;}
+  .topbar{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--line);
+    padding:14px 18px;display:flex;align-items:center;justify-content:space-between;}
+  .brand{display:flex;align-items:center;gap:9px;}
+  .brand-dot{width:11px;height:11px;border-radius:50%;background:var(--red);animation:pulse 1.8s ease-in-out infinite;flex-shrink:0;}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(195,31,46,.45);}50%{box-shadow:0 0 0 6px rgba(195,31,46,0);}}
+  .brand-name{font-weight:600;font-size:17px;letter-spacing:-.2px;}
+  .brand-name b{color:var(--red);}
+  .who{font-size:12px;color:var(--ink-faint);text-align:right;line-height:1.3;}
+  .who span{display:block;color:var(--ink-soft);font-weight:600;}
+  .content{flex:1;padding:16px 18px 90px;}
+  .screen{display:none;} .screen.active{display:block;animation:fade .2s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+  .nav{position:sticky;bottom:0;background:var(--bg);border-top:1px solid var(--line);
+    display:flex;padding:6px 8px calc(6px + env(safe-area-inset-bottom));z-index:10;}
+  .nav button{flex:1;background:none;border:none;padding:8px 4px;font-size:11px;color:var(--ink-faint);
+    font-family:inherit;font-weight:500;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;border-radius:10px;}
+  .nav button .ic{width:20px;height:20px;}
+  .nav button.active{color:var(--red);}
+  .nav button.active .ic circle,.nav button.active .ic path{stroke:var(--red);}
+  .card{background:var(--bg);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:12px;}
+  .label{font-size:12px;font-weight:600;color:var(--ink-soft);margin:0 0 6px;display:block;}
+  input,select,textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 12px;
+    font-size:15px;font-family:inherit;color:var(--ink);background:var(--bg-soft);}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--red);background:var(--bg);}
+  textarea{resize:vertical;min-height:56px;}
+  .field{margin-bottom:14px;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .btn{border:none;border-radius:10px;padding:13px 16px;font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;width:100%;}
+  .btn:active{opacity:.75;} .btn-primary{background:var(--red);color:#fff;}
+  .btn-outline{background:var(--bg);color:var(--ink);border:1px solid var(--line);}
+  .btn-teal{background:var(--teal);color:#fff;} .btn-amber{background:var(--amber);color:#fff;}
+  .btn-sm{padding:9px 14px;font-size:13px;width:auto;} .btn:disabled{opacity:.45;cursor:default;}
+  .err{color:var(--red-dark);font-size:12.5px;margin-top:6px;}
+  .muted{color:var(--ink-faint);font-size:13px;}
+  .empty{text-align:center;padding:46px 20px;color:var(--ink-faint);}
+  .empty .display{font-size:16px;color:var(--ink);margin-bottom:6px;}
+  .badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:4px 9px;border-radius:20px;}
+  .badge-critical{background:var(--red-50);color:var(--red-dark);}
+  .badge-urgent{background:var(--amber-50);color:var(--amber);}
+  .badge-normal{background:var(--teal-50);color:var(--teal);}
+  .badge-dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+  .badge-critical .badge-dot{animation:pulse 1.2s ease-in-out infinite;}
+  .badge-match{background:var(--teal-50);color:var(--teal);}
+  .badge-fulfilled{background:var(--line);color:var(--ink-soft);}
+  .badge-pending{background:var(--amber-50);color:var(--amber);}
+  .badge-verified{background:var(--teal-50);color:var(--teal);}
+  .badge-flag{background:var(--red-50);color:var(--red-dark);}
+  .req{border:1px solid var(--line);border-radius:var(--radius);padding:15px;margin-bottom:12px;}
+  .req.critical{border-color:#F0C7CB;}
+  .req-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;}
+  .bg-tag{font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;color:var(--red);line-height:1;}
+  .req-meta{font-size:13.5px;color:var(--ink-soft);margin:2px 0;} .req-meta b{color:var(--ink);}
+  .req-time{font-size:11.5px;color:var(--ink-faint);margin-top:6px;}
+  .req-actions{margin-top:12px;display:flex;gap:8px;}
+  .onboard{padding:30px 22px;}
+  .onboard h1{font-size:24px;margin:0 0 4px;letter-spacing:-.4px;}
+  .onboard h1 b{color:var(--red);}
+  .onboard p{color:var(--ink-soft);font-size:14px;margin:0 0 22px;line-height:1.5;}
+  .role-grid{display:grid;gap:10px;margin-bottom:20px;}
+  .role-opt{border:1.5px solid var(--line);border-radius:var(--radius);padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;}
+  .role-opt.sel{border-color:var(--red);background:var(--red-50);}
+  .role-opt .ic{width:22px;height:22px;flex-shrink:0;color:var(--ink-soft);}
+  .role-opt.sel .ic{color:var(--red);}
+  .role-opt-t{font-weight:600;font-size:14.5px;} .role-opt-d{font-size:12px;color:var(--ink-faint);}
+  .section-h{font-size:12.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-faint);margin:22px 0 10px;}
+  .section-h:first-child{margin-top:0;}
+  .resp-row{display:flex;justify-content:space-between;align-items:flex-start;padding:11px 0;border-top:1px solid var(--line);gap:10px;}
+  .resp-row:first-of-type{border-top:none;}
+  .resp-name{font-size:14px;font-weight:600;} .resp-sub{font-size:12px;color:var(--ink-faint);margin-top:2px;}
+  a.tel{color:var(--teal);text-decoration:none;font-weight:600;font-size:13px;white-space:nowrap;}
+  .notice{background:var(--amber-50);border:1px solid #EBD6A8;border-radius:12px;padding:12px 14px;font-size:13px;color:#7A5008;margin-bottom:14px;line-height:1.5;}
+  .notice.info{background:var(--teal-50);border-color:#BFE3DF;color:#0B4A44;}
+  .q-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-top:1px solid var(--line);gap:10px;}
+  .q-row:first-of-type{border-top:none;}
+  .q-text{font-size:13.5px;flex:1;line-height:1.4;}
+  .toggle-grp{display:flex;gap:6px;flex-shrink:0;}
+  .toggle-btn{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:6px 12px;font-size:12.5px;font-weight:600;cursor:pointer;color:var(--ink-soft);}
+  .toggle-btn.active-yes{background:var(--red-50);border-color:var(--red);color:var(--red-dark);}
+  .toggle-btn.active-no{background:var(--teal-50);border-color:var(--teal);color:var(--teal);}
+  .flag-tag{display:inline-block;font-size:11px;background:var(--red-50);color:var(--red-dark);padding:3px 8px;border-radius:8px;margin:2px 4px 2px 0;}
+  .disabled-overlay{opacity:.5;pointer-events:none;}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- ONBOARDING -->
+  <div class="screen active" id="screen-onboard">
+    <div class="onboard">
+      <h1><b>Blood</b>Bridge AI</h1>
+      <p>Coordinated blood requests between verified hospitals, blood banks, and voluntary donors — built so only real medical need reaches the network.</p>
+
+      <div class="label">I am</div>
+      <div class="role-grid" id="roleGrid"></div>
+
+      <!-- STAFF FIELDS -->
+      <div id="staffFields" style="display:none">
+        <div class="field"><span class="label">Staff name</span><input id="stName" placeholder="e.g. Dr. Ayesha Khan"></div>
+        <div class="field"><span class="label">Phone</span><input id="stPhone" type="tel" placeholder="03xx-xxxxxxx"></div>
+        <div class="field"><span class="label">Institution name</span><input id="stInst" placeholder="e.g. Alkhidmat Blood Bank, Multan"></div>
+        <div class="field"><span class="label">Institution registration / license no.</span><input id="stReg" placeholder="e.g. reg. number or license ID"></div>
+        <div class="field"><span class="label">City / area</span><input id="stArea" placeholder="e.g. Multan"></div>
+      </div>
+
+      <!-- DONOR FIELDS -->
+      <div id="donorFields" style="display:none">
+        <div class="field"><span class="label">Your name</span><input id="dnName" placeholder="e.g. Bilal Ahmed"></div>
+        <div class="row2">
+          <div class="field"><span class="label">Phone</span><input id="dnPhone" type="tel" placeholder="03xx-xxxxxxx"></div>
+          <div class="field"><span class="label">Age</span><input id="dnAge" type="number" min="16" max="70"></div>
+        </div>
+        <div class="row2">
+          <div class="field"><span class="label">Blood group</span>
+            <select id="dnBG"><option>O+</option><option>O-</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>AB+</option><option>AB-</option></select>
+          </div>
+          <div class="field"><span class="label">City / area</span><input id="dnArea" placeholder="e.g. Lahore"></div>
+        </div>
+        <div class="field"><span class="label">Last donation date (if any)</span><input id="dnLast" type="date"></div>
+
+        <div class="section-h">Health screening (self-reported)</div>
+        <div class="notice">These answers are a pre-screening step only — not a medical clearance. Every donor is re-screened and blood-tested in person at the blood bank before any donation, exactly as required today.</div>
+        <div class="card" id="qList" style="padding:4px 16px"></div>
+      </div>
+
+      <div class="err" id="onboardErr" style="display:none"></div>
+      <button class="btn btn-primary" id="btnOnboard" style="margin-top:6px">Continue</button>
+    </div>
+  </div>
+
+  <!-- PENDING VERIFICATION SCREEN -->
+  <div class="screen" id="screen-pending">
+    <div class="onboard">
+      <h1>Verification <b>pending</b></h1>
+      <p>Your institution account has been created but is not yet verified. Blood requests can only be posted by verified hospital and blood bank staff — this protects patients from fraudulent requests.</p>
+      <div class="notice info">In a full deployment, the BloodBridge team manually verifies each institution's registration details before granting posting access. For this demo, you can simulate approval below.</div>
+      <button class="btn btn-teal" id="btnDemoVerify">Simulate verification approval (demo only)</button>
+      <button class="btn btn-outline" id="btnBrowseUnverified" style="margin-top:10px">Continue browsing without posting access</button>
+    </div>
+  </div>
+
+  <!-- MAIN APP -->
+  <div class="screen" id="screen-main">
+    <div class="topbar">
+      <div class="brand"><div class="brand-dot"></div><div class="brand-name"><b>Blood</b>Bridge</div></div>
+      <div class="who"><span id="whoName">-</span><span id="whoRole" style="font-weight:400;color:var(--ink-faint)"></span></div>
+    </div>
+
+    <div class="content">
+      <!-- FEED -->
+      <div class="screen active" id="tab-feed">
+        <div id="unverifiedBanner" class="notice" style="display:none">Your institution isn't verified yet — you can view the feed but cannot post requests.</div>
+        <div style="display:flex;gap:8px;margin-bottom:14px;">
+          <button class="btn btn-outline btn-sm" id="filterAll" style="flex:1">All requests</button>
+          <button class="btn btn-outline btn-sm" id="filterMatch" style="flex:1">Matches me</button>
+        </div>
+        <div id="feedList"></div>
+      </div>
+
+      <!-- POST (staff only) -->
+      <div class="screen" id="tab-post">
+        <div class="notice info">Patient identity is never shown publicly. Only blood group, units, hospital, area, and urgency appear on the shared feed.</div>
+        <div class="field"><span class="label">Internal patient reference (private — for your records only)</span><input id="pPatientRef" placeholder="e.g. admission ID, kept private"></div>
+        <div class="row2">
+          <div class="field"><span class="label">Blood group needed</span>
+            <select id="pBG"><option>O+</option><option>O-</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>AB+</option><option>AB-</option></select>
+          </div>
+          <div class="field"><span class="label">Units needed</span><input id="pUnits" type="number" min="1" value="1"></div>
+        </div>
+        <div class="field"><span class="label">Hospital / institution</span><input id="pHospital" placeholder="Auto-filled from your account"></div>
+        <div class="field"><span class="label">City / area</span><input id="pArea" placeholder="e.g. Lahore"></div>
+        <div class="field"><span class="label">Urgency</span>
+          <select id="pUrgency"><option value="critical">Critical — needed now</option><option value="urgent" selected>Urgent — within hours</option><option value="normal">Normal — planned</option></select>
+        </div>
+        <div class="err" id="postErr" style="display:none"></div>
+        <button class="btn btn-primary" id="btnPost">Post request</button>
+      </div>
+
+      <!-- MY ACTIVITY -->
+      <div class="screen" id="tab-mine">
+        <div id="staffMineBlock">
+          <div class="section-h">Requests I posted</div>
+          <div id="myRequests"></div>
+          <div class="section-h">Register a replacement donor</div>
+          <div class="card">
+            <p class="muted" style="margin-top:0">If a family has brought their own donor to the hospital, register them here so they join the donor pool for future matching.</p>
+            <div class="field"><span class="label">Donor name</span><input id="rdName"></div>
+            <div class="row2">
+              <div class="field"><span class="label">Phone</span><input id="rdPhone" type="tel"></div>
+              <div class="field"><span class="label">Blood group</span><select id="rdBG"><option>O+</option><option>O-</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>AB+</option><option>AB-</option></select></div>
+            </div>
+            <button class="btn btn-outline" id="btnRegDonor">Register replacement donor</button>
+          </div>
+          <div class="section-h">Institution verification</div>
+          <div class="card" id="verifyPanel"></div>
+        </div>
+        <div id="donorMineBlock">
+          <div class="section-h">My donor profile</div>
+          <div class="card" id="donorProfileCard"></div>
+          <div class="section-h">Requests I responded to</div>
+          <div id="myResponses"></div>
+        </div>
+        <div class="section-h">Account</div>
+        <div class="card">
+          <div class="resp-row" style="border-top:none"><div><div class="resp-name" id="acctName">-</div><div class="resp-sub" id="acctDetail">-</div></div></div>
+          <button class="btn btn-outline btn-sm" id="btnSwitch" style="margin-top:10px;width:100%">Switch account</button>
+          <button class="btn btn-outline btn-sm" id="btnReset" style="margin-top:8px;width:100%">Reset demo data</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="nav" id="mainNav">
+      <button class="navbtn active" data-tab="feed">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s-7-4.6-9.5-9A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 6c-2.5 4.4-9.5 9-9.5 9Z"/></svg>Feed
+      </button>
+      <button class="navbtn" data-tab="post" id="navPost">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg>Post need
+      </button>
+      <button class="navbtn" data-tab="mine">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 20c1.5-4 5-5.5 7.5-5.5s6 1.5 7.5 5.5"/></svg>My activity
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------------- storage ----------------
+   This prototype was originally built inside a sandbox that provided a
+   window.storage API. This shim keeps the same interface but persists to
+   localStorage, so the file runs standalone in any browser. */
+if (!window.storage) {
+  window.storage = {
+    async get(key, shared) {
+      const k = (shared ? 'bb_s_' : 'bb_p_') + key;
+      const v = localStorage.getItem(k);
+      return v === null ? null : { value: v };
+    },
+    async set(key, value, shared) {
+      localStorage.setItem((shared ? 'bb_s_' : 'bb_p_') + key, value);
+      return { success: true };
+    },
+  };
+}
+
+const REQ_KEY='bb2_requests', RES_KEY='bb2_responses', STAFF_KEY='bb2_staff', DONOR_KEY='bb2_donors', PROFILE_KEY='bb2_profile';
+async function getShared(key,fb){try{const r=await window.storage.get(key,true);return r?JSON.parse(r.value):fb;}catch(e){return fb;}}
+async function setShared(key,v){try{await window.storage.set(key,JSON.stringify(v),true);}catch(e){console.error(e);}}
+async function getPersonal(key){try{const r=await window.storage.get(key,false);return r?JSON.parse(r.value):null;}catch(e){return null;}}
+async function setPersonal(key,v){try{await window.storage.set(key,JSON.stringify(v),false);}catch(e){console.error(e);}}
+
+const CAN_DONATE_TO={'O-':['O-','O+','A-','A+','B-','B+','AB-','AB+'],'O+':['O+','A+','B+','AB+'],'A-':['A-','A+','AB-','AB+'],'A+':['A+','AB+'],'B-':['B-','B+','AB-','AB+'],'B+':['B+','AB+'],'AB-':['AB-','AB+'],'AB+':['AB+']};
+function isCompatible(d,n){return (CAN_DONATE_TO[d]||[]).includes(n);}
+function timeAgo(ts){const s=Math.floor((Date.now()-ts)/1000);if(s<60)return'just now';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago';}
+function urgencyRank(u){return u==='critical'?0:u==='urgent'?1:2;}
+function urgencyBadge(u){if(u==='critical')return'<span class="badge badge-critical"><span class="badge-dot"></span>Critical</span>';if(u==='urgent')return'<span class="badge badge-urgent"><span class="badge-dot"></span>Urgent</span>';return'<span class="badge badge-normal"><span class="badge-dot"></span>Normal</span>';}
+function escapeHtml(s){return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function daysSince(dateStr){if(!dateStr)return null;const d=new Date(dateStr);return Math.floor((Date.now()-d.getTime())/86400000);}
+
+const QUESTIONS=[
+  {id:'q1',text:'Do you currently have a fever, infection, or feel unwell?'},
+  {id:'q2',text:'Have you ever tested positive for HIV, or had known high-risk exposure?'},
+  {id:'q3',text:'Have you ever tested positive for Hepatitis B (HBsAg) or Hepatitis C?'},
+  {id:'q4',text:'Do you have a chronic condition (heart, kidney, or uncontrolled diabetes)?'},
+  {id:'q5',text:'Are you currently on long-term medication (e.g. blood thinners)?'},
+  {id:'q6',text:'Tattoo, piercing, or major dental work in the last 6 months?'},
+  {id:'q7',text:'Currently pregnant, or given birth in the last 6 months?'},
+  {id:'q8',text:'Travelled to a malaria-affected area in the last 3 months?'}
+];
+let qAnswers={};
+
+/* ---------------- onboarding role select ---------------- */
+let selectedRole=null;
+const ROLES=[
+  {id:'staff',name:'Hospital / Blood bank staff',desc:'I coordinate blood requests for my institution',icon:'M4 7h16v13H4zM4 7l3-4h10l3 4'},
+  {id:'donor',name:'Voluntary donor',desc:'I want to register and respond when needed',icon:'M12 5v14M5 12h14'}
+];
+const roleGridEl=document.getElementById('roleGrid');
+ROLES.forEach(r=>{
+  const div=document.createElement('div');div.className='role-opt';div.dataset.role=r.id;
+  div.innerHTML=`<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="${r.icon}"/></svg><div><div class="role-opt-t">${r.name}</div><div class="role-opt-d">${r.desc}</div></div>`;
+  div.onclick=()=>{
+    selectedRole=r.id;
+    document.querySelectorAll('.role-opt').forEach(e=>e.classList.remove('sel'));div.classList.add('sel');
+    document.getElementById('staffFields').style.display=r.id==='staff'?'block':'none';
+    document.getElementById('donorFields').style.display=r.id==='donor'?'block':'none';
+  };
+  roleGridEl.appendChild(div);
+});
+
+const qListEl=document.getElementById('qList');
+QUESTIONS.forEach(q=>{
+  const row=document.createElement('div');row.className='q-row';
+  row.innerHTML=`<div class="q-text">${q.text}</div>
+    <div class="toggle-grp">
+      <button type="button" class="toggle-btn" data-q="${q.id}" data-val="no">No</button>
+      <button type="button" class="toggle-btn" data-q="${q.id}" data-val="yes">Yes</button>
+    </div>`;
+  qListEl.appendChild(row);
+});
+qListEl.addEventListener('click',e=>{
+  const btn=e.target.closest('.toggle-btn'); if(!btn) return;
+  const q=btn.dataset.q, val=btn.dataset.val;
+  qAnswers[q]=val;
+  qListEl.querySelectorAll(`[data-q="${q}"]`).forEach(b=>b.classList.remove('active-yes','active-no'));
+  btn.classList.add(val==='yes'?'active-yes':'active-no');
+});
+
+/* ---------------- onboarding submit ---------------- */
+document.getElementById('btnOnboard').onclick=async ()=>{
+  const err=document.getElementById('onboardErr'); err.style.display='none';
+  if(!selectedRole){err.textContent='Please choose your role.';err.style.display='block';return;}
+
+  if(selectedRole==='staff'){
+    const name=document.getElementById('stName').value.trim();
+    const phone=document.getElementById('stPhone').value.trim();
+    const inst=document.getElementById('stInst').value.trim();
+    const reg=document.getElementById('stReg').value.trim();
+    const area=document.getElementById('stArea').value.trim();
+    if(!name||!phone||!inst||!reg||!area){err.textContent='Please fill all institution fields — this is required for verification.';err.style.display='block';return;}
+    const staffList=await getShared(STAFF_KEY,[]);
+    const id='st_'+Date.now();
+    const record={id,name,phone,institution:inst,reg_no:reg,area,verified:false,created_at:Date.now()};
+    staffList.push(record); await setShared(STAFF_KEY,staffList);
+    const profile={role:'staff',...record};
+    await setPersonal(PROFILE_KEY,profile);
+    profileGlobal=profile;
+    document.getElementById('screen-onboard').classList.remove('active');
+    document.getElementById('screen-pending').classList.add('active');
+    return;
+  }
+
+  if(selectedRole==='donor'){
+    const name=document.getElementById('dnName').value.trim();
+    const phone=document.getElementById('dnPhone').value.trim();
+    const age=parseInt(document.getElementById('dnAge').value)||null;
+    const bg=document.getElementById('dnBG').value;
+    const area=document.getElementById('dnArea').value.trim();
+    const last=document.getElementById('dnLast').value||null;
+    if(!name||!phone||!age||!area){err.textContent='Please fill all donor fields.';err.style.display='block';return;}
+    const flags=[];
+    QUESTIONS.forEach(q=>{ if(qAnswers[q.id]==='yes') flags.push(q.text); });
+    if(age<18||age>65) flags.push('Outside standard donor age range (18–65)');
+    const dSince=daysSince(last);
+    if(dSince!==null && dSince<90) flags.push(`Donated ${dSince} day(s) ago — likely inside the 3-month gap`);
+    const donorList=await getShared(DONOR_KEY,[]);
+    const id='dn_'+Date.now();
+    const record={id,name,phone,bg,age,area,last_donation:last,flags,source:'self-registered',created_at:Date.now()};
+    donorList.push(record); await setShared(DONOR_KEY,donorList);
+    const profile={role:'donor',...record};
+    await setPersonal(PROFILE_KEY,profile);
+    profileGlobal=profile;
+    enterApp();
+    return;
+  }
+};
+
+document.getElementById('btnDemoVerify').onclick=async ()=>{
+  const staffList=await getShared(STAFF_KEY,[]);
+  const rec=staffList.find(s=>s.id===profileGlobal.id);
+  if(rec) rec.verified=true;
+  await setShared(STAFF_KEY,staffList);
+  profileGlobal.verified=true;
+  await setPersonal(PROFILE_KEY,profileGlobal);
+  document.getElementById('screen-pending').classList.remove('active');
+  enterApp();
+};
+document.getElementById('btnBrowseUnverified').onclick=()=>{
+  document.getElementById('screen-pending').classList.remove('active');
+  enterApp();
+};
+
+/* ---------------- nav ---------------- */
+document.querySelectorAll('.navbtn').forEach(btn=>{
+  btn.onclick=()=>{
+    document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
+    document.querySelectorAll('#screen-main .content .screen').forEach(s=>s.classList.remove('active'));
+    document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+    if(btn.dataset.tab==='feed') renderFeed();
+    if(btn.dataset.tab==='mine') renderMine();
+  };
+});
+
+let profileGlobal=null, feedFilter='all';
+
+function enterApp(){
+  document.getElementById('screen-onboard').classList.remove('active');
+  document.getElementById('screen-main').classList.add('active');
+  const p=profileGlobal;
+  document.getElementById('whoName').textContent=p.name;
+  document.getElementById('whoRole').textContent = p.role==='staff' ? ' · '+p.institution+(p.verified?' ✓':' (pending)') : ' · Donor · '+p.bg;
+  document.getElementById('acctName').textContent=p.name;
+  document.getElementById('acctDetail').textContent = p.role==='staff' ? p.institution+' · '+p.area+(p.verified?' · Verified':' · Pending verification') : p.phone+' · '+p.area+' · '+p.bg;
+
+  document.getElementById('navPost').style.display = p.role==='staff' ? 'flex' : 'none';
+  document.getElementById('staffMineBlock').style.display = p.role==='staff' ? 'block' : 'none';
+  document.getElementById('donorMineBlock').style.display = p.role==='donor' ? 'block' : 'none';
+
+  if(p.role==='staff'){
+    document.getElementById('pHospital').value = p.institution;
+    document.getElementById('pArea').value = p.area;
+  }
+
+  renderFeed();
+  setInterval(renderFeed,15000);
+}
+
+document.getElementById('btnSwitch').onclick=()=>{
+  profileGlobal=null;
+  document.getElementById('screen-main').classList.remove('active');
+  document.getElementById('screen-onboard').classList.add('active');
+};
+
+document.getElementById('btnReset').onclick=()=>{
+  if(confirm('Clear all demo data (accounts, donors, requests, responses) and start fresh?')){
+    Object.keys(localStorage)
+      .filter(k=>k.startsWith('bb_s_')||k.startsWith('bb_p_'))
+      .forEach(k=>localStorage.removeItem(k));
+    location.reload();
+  }
+};
+
+/* ---------------- feed ---------------- */
+document.getElementById('filterAll').onclick=()=>{feedFilter='all';renderFeed();};
+document.getElementById('filterMatch').onclick=()=>{feedFilter='match';renderFeed();};
+
+async function renderFeed(){
+  const p=profileGlobal;
+  const banner=document.getElementById('unverifiedBanner');
+  banner.style.display = (p.role==='staff' && !p.verified) ? 'block' : 'none';
+  document.getElementById('filterAll').style.borderColor=feedFilter==='all'?'var(--red)':'var(--line)';
+  document.getElementById('filterMatch').style.borderColor=feedFilter==='match'?'var(--red)':'var(--line)';
+
+  let reqs=await getShared(REQ_KEY,[]);
+  reqs=reqs.filter(r=>r.status!=='fulfilled');
+  if(feedFilter==='match' && p.role==='donor'){ reqs=reqs.filter(r=>isCompatible(p.bg,r.bg)); }
+  reqs.sort((a,b)=>urgencyRank(a.urgency)-urgencyRank(b.urgency)||b.created_at-a.created_at);
+
+  const list=document.getElementById('feedList');
+  if(reqs.length===0){ list.innerHTML=`<div class="empty"><div class="display">No open requests</div>All caught up — check back soon.</div>`; return; }
+
+  const responses=await getShared(RES_KEY,{});
+  list.innerHTML=reqs.map(r=>{
+    const match=p.role==='donor' && isCompatible(p.bg,r.bg);
+    const mine = p.role==='staff' && r.posted_by_staff_id===p.id;
+    let action='';
+    if(mine){ action=`<span class="muted">Your request · see My activity for responses</span>`; }
+    else if(p.role==='donor'){
+      const already=(responses[r.id]||[]).some(x=>x.donor_id===p.id);
+      action = already ? `<span class="badge badge-match">You offered to help</span>`
+        : `<button class="btn btn-teal btn-sm" data-respond="${r.id}">I can help</button>`;
+    } else {
+      action = `<span class="muted">Posted by ${escapeHtml(r.posted_by_institution)}</span>`;
+    }
+    return `<div class="req ${r.urgency==='critical'?'critical':''}">
+      <div class="req-top">
+        <div><div class="bg-tag">${r.bg}</div><div class="req-meta"><b>${r.units}</b> unit${r.units>1?'s':''} needed</div></div>
+        ${urgencyBadge(r.urgency)}
+      </div>
+      <div class="req-meta">🏥 ${escapeHtml(r.hospital)} — ${escapeHtml(r.area)}</div>
+      ${match?'<span class="badge badge-match" style="margin-top:6px">Matches your blood group</span>':''}
+      <div class="req-time">${timeAgo(r.created_at)}</div>
+      <div class="req-actions">${action}</div>
+    </div>`;
+  }).join('');
+
+  list.querySelectorAll('[data-respond]').forEach(btn=>{ btn.onclick=()=>respondToRequest(btn.dataset.respond); });
+}
+
+async function respondToRequest(reqId){
+  const p=profileGlobal;
+  const responses=await getShared(RES_KEY,{});
+  if(!responses[reqId]) responses[reqId]=[];
+  responses[reqId].push({donor_id:p.id,donor_name:p.name,donor_phone:p.phone,donor_bg:p.bg,donor_area:p.area,flags:p.flags||[],last_donation:p.last_donation||null,created_at:Date.now()});
+  await setShared(RES_KEY,responses);
+  renderFeed();
+}
+
+/* ---------------- post request (staff only) ---------------- */
+document.getElementById('btnPost').onclick=async ()=>{
+  const p=profileGlobal, err=document.getElementById('postErr');
+  if(!p.verified){ err.textContent='Your institution must be verified before posting requests.'; err.style.display='block'; return; }
+  const patientRef=document.getElementById('pPatientRef').value.trim();
+  const hospital=document.getElementById('pHospital').value.trim();
+  const area=document.getElementById('pArea').value.trim();
+  const units=parseInt(document.getElementById('pUnits').value)||1;
+  const bg=document.getElementById('pBG').value;
+  const urgency=document.getElementById('pUrgency').value;
+  if(!hospital||!area){ err.textContent='Please fill hospital and area.'; err.style.display='block'; return; }
+  if(units<1||units>20){ err.textContent='Units needed must be between 1 and 20.'; err.style.display='block'; return; }
+  err.style.display='none';
+  const reqs=await getShared(REQ_KEY,[]);
+  reqs.push({id:'r_'+Date.now()+'_'+Math.floor(Math.random()*999),patient_ref:patientRef,bg,units,hospital,area,urgency,status:'open',
+    posted_by_staff_id:p.id,posted_by_institution:p.institution,created_at:Date.now()});
+  await setShared(REQ_KEY,reqs);
+  document.getElementById('pPatientRef').value='';
+  document.querySelector('[data-tab="feed"]').click();
+};
+
+/* ---------------- register replacement donor (staff) ---------------- */
+document.getElementById('btnRegDonor').onclick=async ()=>{
+  const p=profileGlobal;
+  const name=document.getElementById('rdName').value.trim();
+  const phone=document.getElementById('rdPhone').value.trim();
+  const bg=document.getElementById('rdBG').value;
+  if(!name||!phone){ alert('Please enter donor name and phone.'); return; }
+  const donorList=await getShared(DONOR_KEY,[]);
+  donorList.push({id:'dn_'+Date.now(),name,phone,bg,age:null,area:p.area,last_donation:null,flags:['Registered as replacement donor — full screening pending at blood bank'],source:'replacement via '+p.institution,created_at:Date.now()});
+  await setShared(DONOR_KEY,donorList);
+  document.getElementById('rdName').value=''; document.getElementById('rdPhone').value='';
+  alert('Donor registered and added to the network for future matching.');
+};
+
+/* ---------------- my activity ---------------- */
+async function renderMine(){
+  const p=profileGlobal;
+  const reqs=await getShared(REQ_KEY,[]);
+  const responses=await getShared(RES_KEY,{});
+
+  if(p.role==='staff'){
+    const mine=reqs.filter(r=>r.posted_by_staff_id===p.id).sort((a,b)=>b.created_at-a.created_at);
+    const el=document.getElementById('myRequests');
+    el.innerHTML = mine.length===0 ? `<div class="empty">You haven't posted any requests yet.</div>` :
+      mine.map(r=>{
+        const resList=responses[r.id]||[];
+        return `<div class="card">
+          <div class="req-top">
+            <div><div class="bg-tag">${r.bg}</div><div class="req-meta">${escapeHtml(r.hospital)}${r.patient_ref?' · Ref: '+escapeHtml(r.patient_ref):''}</div></div>
+            ${r.status==='fulfilled'?'<span class="badge badge-fulfilled">Fulfilled</span>':urgencyBadge(r.urgency)}
+          </div>
+          <div class="req-time">Posted ${timeAgo(r.created_at)}</div>
+          ${resList.length===0?'<div class="muted" style="margin-top:10px">No responses yet.</div>':
+            resList.map(x=>{
+              const dSince=daysSince(x.last_donation);
+              const recentFlag = dSince!==null && dSince<90 ? `<span class="flag-tag">Donated ${dSince}d ago</span>` : '';
+              const flagTags=(x.flags||[]).slice(0,2).map(f=>`<span class="flag-tag">${escapeHtml(f)}</span>`).join('');
+              return `<div class="resp-row">
+                <div><div class="resp-name">${escapeHtml(x.donor_name)} · ${x.donor_bg}</div>
+                <div class="resp-sub">${escapeHtml(x.donor_area||'')} · ${timeAgo(x.created_at)}</div>
+                <div style="margin-top:4px">${recentFlag}${flagTags || (!recentFlag?'<span class="flag-tag" style="background:var(--teal-50);color:var(--teal)">No flags self-reported</span>':'')}</div></div>
+                <a class="tel" href="tel:${x.donor_phone}">Call</a>
+              </div>`;
+            }).join('')}
+          ${r.status!=='fulfilled'?`<button class="btn btn-outline btn-sm" data-fulfill="${r.id}" style="margin-top:12px;width:100%">Mark as fulfilled</button>`:''}
+        </div>`;
+      }).join('');
+    el.querySelectorAll('[data-fulfill]').forEach(btn=>{
+      btn.onclick=async ()=>{
+        const all=await getShared(REQ_KEY,[]);
+        const r=all.find(x=>x.id===btn.dataset.fulfill); if(r) r.status='fulfilled';
+        await setShared(REQ_KEY,all); renderMine();
+      };
+    });
+
+    const staffList=await getShared(STAFF_KEY,[]);
+    const pending=staffList.filter(s=>!s.verified && s.id!==p.id);
+    const vp=document.getElementById('verifyPanel');
+    vp.innerHTML = `<div class="resp-row" style="border-top:none">
+        <div><div class="resp-name">Your institution</div><div class="resp-sub">${escapeHtml(p.institution)}</div></div>
+        <span class="badge ${p.verified?'badge-verified':'badge-pending'}">${p.verified?'Verified':'Pending'}</span>
+      </div>` +
+      (pending.length===0 ? `<div class="muted" style="margin-top:8px">No other institutions pending review.</div>` :
+        pending.map(s=>`<div class="resp-row">
+          <div><div class="resp-name">${escapeHtml(s.institution)}</div><div class="resp-sub">${escapeHtml(s.name)} · Reg: ${escapeHtml(s.reg_no)} · ${escapeHtml(s.area)}</div></div>
+          <button class="btn btn-amber btn-sm" data-approve="${s.id}">Approve</button>
+        </div>`).join(''));
+    vp.querySelectorAll('[data-approve]').forEach(btn=>{
+      btn.onclick=async ()=>{
+        const list=await getShared(STAFF_KEY,[]);
+        const rec=list.find(s=>s.id===btn.dataset.approve); if(rec) rec.verified=true;
+        await setShared(STAFF_KEY,list); renderMine();
+      };
+    });
+  }
+
+  if(p.role==='donor'){
+    const dSince=daysSince(p.last_donation);
+    const card=document.getElementById('donorProfileCard');
+    card.innerHTML = `<div class="resp-row" style="border-top:none"><div><div class="resp-name">${p.bg} · Age ${p.age}</div><div class="resp-sub">${escapeHtml(p.area)}</div></div></div>
+      <div class="resp-sub" style="margin-top:6px">${p.last_donation ? 'Last donation: '+p.last_donation+(dSince!==null?' ('+dSince+' days ago)':'') : 'No prior donation recorded'}</div>
+      <div style="margin-top:8px">${(p.flags&&p.flags.length) ? p.flags.map(f=>`<span class="flag-tag">${escapeHtml(f)}</span>`).join('') : '<span class="flag-tag" style="background:var(--teal-50);color:var(--teal)">No flags self-reported</span>'}</div>`;
+
+    const mineResponses=[];
+    Object.keys(responses).forEach(reqId=>{
+      (responses[reqId]||[]).forEach(x=>{ if(x.donor_id===p.id){ const req=reqs.find(r=>r.id===reqId); if(req) mineResponses.push({...x,req}); } });
+    });
+    mineResponses.sort((a,b)=>b.created_at-a.created_at);
+    document.getElementById('myResponses').innerHTML = mineResponses.length===0 ? `<div class="empty">You haven't responded to any requests yet.</div>` :
+      mineResponses.map(x=>`<div class="card">
+        <div class="req-meta"><b>${x.req.bg}</b> needed at ${escapeHtml(x.req.hospital)}</div>
+        <div class="req-time">You responded ${timeAgo(x.created_at)} · Status: ${x.req.status==='fulfilled'?'Fulfilled':'Still open'}</div>
+      </div>`).join('');
+  }
+}
+
+/* ---------------- boot ---------------- */
+(async function(){
+  const saved=await getPersonal(PROFILE_KEY);
+  if(saved){
+    profileGlobal=saved;
+    if(profileGlobal.role==='staff' && !profileGlobal.verified){
+      document.getElementById('screen-onboard').classList.remove('active');
+      document.getElementById('screen-pending').classList.add('active');
+    } else { enterApp(); }
+  }
+})();
+</script>
+</body>
+</html>

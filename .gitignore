@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Environment - never commit secrets
+.env
+.env.*
+!.env.example
+
+# Build output
+dist/
+dist-ssr/
+
+# Runtime state (server re-seeds automatically)
+server/data/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.sw?
