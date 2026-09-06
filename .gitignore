@@ -26,3 +26,12 @@ Thumbs.db
 .idea/
 *.suo
 *.sw?
+
+# Vercel
+.vercel/
+.vercel-tmp/
+.vercel
+
+# Test files
+server/test-auth.js
+server/smoke-test.js

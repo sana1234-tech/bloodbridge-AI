@@ -117,7 +117,7 @@ function processMessage(message) {
 
     case 'request_help':
       return {
-        text: "I understand this is urgent. To submit an emergency blood request, please use the Emergency Request form on the dashboard. You'll need:\n\n1. Patient name\n2. Blood group needed\n3. Number of units\n4. Hospital name\n5. Urgency level\n\nOur AI will instantly match you with the best available donors nearby.\n\nFor immediate assistance, call Alkhidmat Helpline: 111-254-547",
+        text: "I understand this is urgent. Blood requests can only be posted by verified hospital staff. If you are a registered staff member, please use the Emergency Request form on the dashboard.\n\nYou'll need:\n1. Patient name\n2. Blood group needed\n3. Number of units\n4. Hospital name\n5. Urgency level\n\nOur AI will instantly match you with the best available donors nearby.\n\nNote: NL quick-post parsing is planned as a future feature for verified staff only.\n\nFor immediate assistance, call Alkhidmat Helpline: 111-254-547",
         suggestions: ['Go to request form', 'Find donors now', 'Check inventory'],
       };
 

@@ -164,6 +164,8 @@ const db = {
   hospitals: new Collection('hospitals'),
   bloodRequests: new Collection('bloodRequests'),
   demandRecords: new Collection('demandRecords'),
+  users: new Collection('users'),
+  donorResponses: new Collection('donorResponses'),
 };
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
@@ -178,6 +180,8 @@ db.persist = function persist() {
       hospitals: db.hospitals.data,
       bloodRequests: db.bloodRequests.data,
       demandRecords: db.demandRecords.data,
+      users: db.users.data,
+      donorResponses: db.donorResponses.data,
       savedAt: new Date().toISOString(),
     }));
     return true;
@@ -197,6 +201,8 @@ db.load = function load() {
     db.hospitals.data = raw.hospitals || [];
     db.bloodRequests.data = raw.bloodRequests || [];
     db.demandRecords.data = raw.demandRecords || [];
+    db.users.data = raw.users || [];
+    db.donorResponses.data = raw.donorResponses || [];
     return true;
   } catch (err) {
     console.error('Failed to load persisted data:', err.message);

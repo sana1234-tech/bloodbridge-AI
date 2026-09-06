@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
-import { MapPin, Clock, Star, Phone, Droplets, Loader2, Zap, Users, ArrowLeft, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { MapPin, Clock, Star, Phone, Droplets, Loader2, Zap, Users, ArrowLeft, CheckCircle2, ShieldCheck, Flag, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { api } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 export default function DonorMatch() {
   const { requestId } = useParams();
   const location = useLocation();
+  const { isVerifiedStaff } = useAuth();
   const [data, setData] = useState(location.state?.matchResult || null);
   const [loading, setLoading] = useState(!data);
   const [requestStatus, setRequestStatus] = useState('matched');
@@ -294,6 +296,24 @@ export default function DonorMatch() {
                   />
                 </div>
               </div>
+
+              {/* Health & Eligibility Flags (staff-only) */}
+              {isVerifiedStaff && donor.healthFlags && donor.healthFlags.length > 0 && (
+                <div className="mt-2 ml-12 flex flex-wrap gap-1.5">
+                  {donor.healthFlags.map((flag, i) => (
+                    <span key={i} className="inline-flex items-center gap-1 text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                      <Flag className="w-2.5 h-2.5" /> {flag}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {isVerifiedStaff && donor.eligibility && !donor.eligibility.eligible && (
+                <div className="mt-1 ml-12">
+                  <span className="inline-flex items-center gap-1 text-[10px] text-orange-700 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">
+                    <AlertCircle className="w-2.5 h-2.5" /> {donor.eligibility.reason}
+                  </span>
+                </div>
+              )}
             </div>
           ))}
         </div>

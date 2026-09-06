@@ -5,6 +5,7 @@ import {
   Activity, MapPin, Clock, ChevronRight, Heart,
 } from 'lucide-react';
 import { api } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const BLOOD_COLORS = {
   'A+': '#e74c3c', 'A-': '#c0392b', 'B+': '#e67e22', 'B-': '#d35400',
@@ -14,6 +15,7 @@ const BLOOD_COLORS = {
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { isVerifiedStaff, user } = useAuth();
 
   useEffect(() => {
     api.getStats().then(setStats).catch(console.error).finally(() => setLoading(false));
@@ -43,13 +45,15 @@ export default function Dashboard() {
               Real-time blood coordination across Pakistan
             </p>
           </div>
-          <Link
-            to="/request"
-            className="bg-white text-red-600 px-5 py-2.5 rounded-lg font-semibold hover:bg-red-50 transition-colors flex items-center gap-2 self-start"
-          >
-            <AlertTriangle className="w-4 h-4" />
-            Emergency Request
-          </Link>
+          {isVerifiedStaff && (
+            <Link
+              to="/request"
+              className="bg-white text-red-600 px-5 py-2.5 rounded-lg font-semibold hover:bg-red-50 transition-colors flex items-center gap-2 self-start"
+            >
+              <AlertTriangle className="w-4 h-4" />
+              Emergency Request
+            </Link>
+          )}
         </div>
       </div>
 
@@ -132,8 +136,8 @@ export default function Dashboard() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100">
-                  <th className="text-left py-2 px-2 text-gray-500 font-medium">Patient</th>
                   <th className="text-left py-2 px-2 text-gray-500 font-medium">Blood Group</th>
+                  <th className="text-left py-2 px-2 text-gray-500 font-medium">Units</th>
                   <th className="text-left py-2 px-2 text-gray-500 font-medium">Hospital</th>
                   <th className="text-left py-2 px-2 text-gray-500 font-medium">Urgency</th>
                   <th className="text-left py-2 px-2 text-gray-500 font-medium">Status</th>
@@ -143,12 +147,12 @@ export default function Dashboard() {
               <tbody>
                 {stats.recentRequests.map((req) => (
                   <tr key={req._id} className="border-b border-gray-50 hover:bg-gray-50">
-                    <td className="py-2.5 px-2 font-medium text-gray-800">{req.patientName}</td>
                     <td className="py-2.5 px-2">
                       <span className="bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs font-bold">
                         {req.bloodGroup}
                       </span>
                     </td>
+                    <td className="py-2.5 px-2 text-gray-600">{req.unitsNeeded}</td>
                     <td className="py-2.5 px-2 text-gray-600">{req.hospitalId?.name || 'N/A'}</td>
                     <td className="py-2.5 px-2">
                       <UrgencyBadge level={req.urgencyLevel} />
@@ -186,13 +190,15 @@ export default function Dashboard() {
 
       {/* Quick Actions */}
       <div className="grid md:grid-cols-3 gap-4">
-        <QuickAction
-          to="/request"
-          icon={AlertTriangle}
-          title="New Emergency Request"
-          desc="Submit a blood request and get AI-matched donors instantly"
-          color="red"
-        />
+        {isVerifiedStaff && (
+          <QuickAction
+            to="/request"
+            icon={AlertTriangle}
+            title="New Emergency Request"
+            desc="Submit a blood request and get AI-matched donors instantly"
+            color="red"
+          />
+        )}
         <QuickAction
           to="/analytics"
           icon={TrendingUp}

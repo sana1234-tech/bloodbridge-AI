@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, ChevronRight, ChevronLeft, CheckCircle, Loader2 } from 'lucide-react';
 import { api } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 const URGENCY_LEVELS = ['critical', 'high', 'medium'];
 
 export default function EmergencyRequest() {
   const navigate = useNavigate();
+  const { isVerifiedStaff } = useAuth();
   const [step, setStep] = useState(1);
   const [hospitals, setHospitals] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -20,6 +22,7 @@ export default function EmergencyRequest() {
     urgencyLevel: 'high',
     contactNumber: '',
     notes: '',
+    internalReference: '',
   });
 
   useEffect(() => {
@@ -61,6 +64,16 @@ export default function EmergencyRequest() {
       setLoading(false);
     }
   };
+
+  // Guard: redirect non-staff to dashboard
+  if (!isVerifiedStaff) {
+    return (
+      <div className="text-center py-12">
+        <AlertTriangle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+        <p className="text-gray-500">Only verified hospital staff can post blood requests.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -211,6 +224,19 @@ export default function EmergencyRequest() {
                     rows={2}
                     placeholder="Any additional information..."
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Internal Reference <span className="text-gray-400 font-normal">(your records only, e.g. admission ID)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={form.internalReference}
+                    onChange={(e) => updateForm('internalReference', e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                    placeholder="e.g. ADM-2026-0042"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">This will never be shown to other users or donors.</p>
                 </div>
               </div>
             </>

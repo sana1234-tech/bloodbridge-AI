@@ -1,4 +1,5 @@
 const db = require('../store');
+const bcrypt = require('bcryptjs');
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
@@ -114,6 +115,26 @@ function seedData() {
   }
 
   console.log(`Seeded: ${db.donors.data.length} donors, ${db.hospitals.data.length} hospitals, ${db.demandRecords.data.length} demand records`);
+
+  // Seed a default admin (verified hospital staff) account so the system has
+  // someone who can approve other staff from the start.
+  if (db.users.data.length === 0) {
+    const hashedPassword = bcrypt.hashSync('admin123', 10);
+    db.users.data.push({
+      _id: 'u_admin001',
+      role: 'staff',
+      verificationStatus: 'verified',
+      fullName: 'Hospital Admin',
+      phone: '03000000001',
+      password: hashedPassword,
+      institutionName: 'Jinnah Hospital Lahore',
+      institutionLicenseNo: 'REG-LHR-001',
+      city: 'Lahore',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    console.log('Seeded admin account: phone=03000000001 password=admin123');
+  }
 }
 
 module.exports = { seedData };
