@@ -57,6 +57,7 @@ export default function DonorMatch() {
               matchScore: md.matchScore,
               distance: md.distance,
               rating: md.donorId?.rating || 0,
+              recentlyRegistered: !!md.recentlyRegistered,
             })) || [],
             totalCompatible: result.matchedDonors?.length || 0,
           });
@@ -250,6 +251,11 @@ export default function DonorMatch() {
                     <span className="bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs font-bold">
                       {donor.bloodGroup}
                     </span>
+                    {donor.recentlyRegistered && (
+                      <span className="bg-teal-100 text-teal-700 px-2 py-0.5 rounded text-xs font-medium">
+                        New Donor
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
                     <span className="flex items-center gap-1">

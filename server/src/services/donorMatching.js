@@ -1,5 +1,6 @@
 const db = require('../store');
 const { donorEligibility, requiredGapDays } = require('./eligibility');
+const { cityCoords } = require('../utils/geo');
 
 // Whole-blood donors must be outside their resting window before they can be
 // matched at all — 90 days for men, 120 days for women (Pakistan Blood
@@ -52,21 +53,39 @@ function findMatchingDonors(requestId) {
     const isExactMatch = donor.bloodGroup === requiredBloodGroup;
     const bloodScore = isExactMatch ? 1.0 : 0.7;
 
-    const distance = haversineDistance(hospital.lat, hospital.lng, donor.lat, donor.lng);
+    // Resolve donor coordinates: their own if valid, else their city center.
+    // Donors registered without coordinates (e.g. legacy records) must never
+    // be silently pushed to (0,0) — that computes a ~7,000 km distance and
+    // crushes their score below the top-10 cutoff, excluding them entirely.
+    const fallback = cityCoords(donor.city);
+    const donorLat = Number.isFinite(donor.lat) ? donor.lat : (fallback ? fallback.lat : null);
+    const donorLng = Number.isFinite(donor.lng) ? donor.lng : (fallback ? fallback.lng : null);
+    let distance;
+    if (donorLat !== null && donorLng !== null && Number.isFinite(hospital.lat) && Number.isFinite(hospital.lng)) {
+      distance = haversineDistance(hospital.lat, hospital.lng, donorLat, donorLng);
+    } else {
+      // No usable coordinates on either side: assume same-city donors are
+      // close (10 km) and cross-city donors are far (100 km).
+      distance = donor.city === hospital.city ? 10 : 100;
+    }
     const distanceScore = Math.max(0, 1 - distance / 50);
 
-    const daysSinceDonation = donor.lastDonationDate
-      ? Math.floor((Date.now() - new Date(donor.lastDonationDate)) / (86400000))
-      : 999;
+    let daysSinceDonation = null;
+    if (donor.lastDonationDate) {
+      const d = Math.floor((Date.now() - new Date(donor.lastDonationDate).getTime()) / 86400000);
+      if (Number.isFinite(d)) daysSinceDonation = Math.max(0, d);
+    }
     const gap = requiredGapDays(donor.gender);
-    const daysPastWindow = daysSinceDonation === 999 ? null : daysSinceDonation - gap;
+    const daysPastWindow = daysSinceDonation === null ? null : daysSinceDonation - gap;
     // Donors who recently became eligible are most engaged; long-inactive
     // donors may have moved away or lost interest, so they score slightly lower.
+    // Brand-new donors with no donation history get a neutral score.
     const availabilityScore = daysPastWindow === null
       ? 0.75
       : daysPastWindow <= 60 ? 1.0 : daysPastWindow <= 120 ? 0.85 : 0.7;
 
-    const ratingScore = donor.rating / 5.0;
+    const rating = Number.isFinite(donor.rating) ? donor.rating : 4.0;
+    const ratingScore = rating / 5.0;
 
     let score = bloodScore * 0.4 + distanceScore * 0.3 + availabilityScore * 0.2 + ratingScore * 0.1;
 
@@ -75,6 +94,11 @@ function findMatchingDonors(requestId) {
     }
 
     const etaMinutes = Math.round((distance / 30) * 60);
+
+    // Brand-new donors (registered within 24h) get a visibility guarantee —
+    // they are appended to results even when the ranked top 10 is full.
+    const registeredAt = donor.createdAt ? new Date(donor.createdAt).getTime() : 0;
+    const recentlyRegistered = registeredAt > 0 && (Date.now() - registeredAt) < 24 * 60 * 60 * 1000;
 
     return {
       donorId: donor._id,
@@ -86,19 +110,32 @@ function findMatchingDonors(requestId) {
       matchScore: Math.round(score * 100),
       distance: parseFloat(distance.toFixed(1)),
       etaMinutes,
-      rating: donor.rating,
+      rating,
       isExactMatch,
       lastDonationDays: daysSinceDonation,
-      totalDonations: donor.totalDonations,
+      totalDonations: donor.totalDonations ?? 0,
+      recentlyRegistered,
     };
   });
 
   scored.sort((a, b) => b.matchScore - a.matchScore);
   const topMatches = scored.slice(0, 10);
+
+  // Visibility guarantee: any donor registered in the last 24 hours must
+  // appear immediately, even if the ranked top 10 is already full — a lack
+  // of donation history should never bury a newly registered donor.
+  for (const m of scored.slice(10)) {
+    if (topMatches.length >= 20) break;
+    if (m.recentlyRegistered) topMatches.push(m);
+  }
+
   // Update request
   const reqIdx = db.bloodRequests.data.findIndex(r => r._id === requestId);
   if (reqIdx !== -1) {
-    db.bloodRequests.data[reqIdx].status = 'matched';
+    // Never downgrade a fulfilled request back to 'matched' on re-runs.
+    if (db.bloodRequests.data[reqIdx].status !== 'fulfilled') {
+      db.bloodRequests.data[reqIdx].status = 'matched';
+    }
     db.bloodRequests.data[reqIdx].matchedDonors = topMatches.map(m => ({
       donorId: m.donorId,
       matchScore: m.matchScore,

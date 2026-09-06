@@ -33,6 +33,12 @@ router.get('/:requestId', optionalAuth, async (req, res) => {
     const request = db.bloodRequests.data.find(r => r._id === req.params.requestId);
     if (!request) return res.status(404).json({ error: 'Request not found' });
 
+    // Re-run matching live (unless fulfilled) so newly registered donors
+    // appear immediately — not only in results frozen at creation time.
+    if (request.status !== 'fulfilled') {
+      try { findMatchingDonors(req.params.requestId); } catch { /* keep stored results on failure */ }
+    }
+
     const hospital = db.hospitals.data.find(h => h._id === request.hospitalId);
     const isPostingStaff = req.user && req.user.userId === request.postedBy;
 
@@ -50,6 +56,10 @@ router.get('/:requestId', optionalAuth, async (req, res) => {
           rating: donor.rating,
         },
       };
+
+      // Flag donors registered in the last 24h so the UI can badge them.
+      const registeredAt = donor.createdAt ? new Date(donor.createdAt).getTime() : 0;
+      base.recentlyRegistered = registeredAt > 0 && (Date.now() - registeredAt) < 24 * 60 * 60 * 1000;
 
       if (isPostingStaff) {
         // Posting staff sees full contact + health/eligibility flags

@@ -9,8 +9,9 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const db = require('../store');
 const { signToken, authenticateToken } = require('../middleware/auth');
-const { validateStaffSignup, validateDonorSignup, CITIES } = require('../utils/validation');
+const { validateStaffSignup, validateDonorSignup } = require('../utils/validation');
 const { validateHealthScreening } = require('../services/healthScreening');
+const { cityCoords } = require('../utils/geo');
 
 const router = express.Router();
 
@@ -78,7 +79,7 @@ router.post('/signup/donor', async (req, res) => {
     db.users.data.push(user);
 
     // Create donor record linked to user
-    const cityData = CITIES.includes(sanitized.city) ? null : null;
+    const coords = cityCoords(sanitized.city);
     const donor = {
       _id: `d${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
       userId: user._id,
@@ -89,8 +90,8 @@ router.post('/signup/donor', async (req, res) => {
       age: sanitized.age,
       city: sanitized.city,
       area: sanitized.area,
-      lat: null,
-      lng: null,
+      lat: coords ? coords.lat : null,
+      lng: coords ? coords.lng : null,
       lastDonationDate: sanitized.lastDonationDate,
       isAvailable: true,
       rating: 4.0,

@@ -11,6 +11,7 @@ const bcrypt = require('bcryptjs');
 const db = require('../store');
 const { authenticateToken, requireVerifiedStaff } = require('../middleware/auth');
 const { PHONE_REGEX, BLOOD_GROUPS } = require('../utils/validation');
+const { cityCoords } = require('../utils/geo');
 
 const router = express.Router();
 
@@ -48,6 +49,7 @@ router.post('/', authenticateToken, requireVerifiedStaff, async (req, res) => {
     db.users.data.push(user);
 
     // Create donor record
+    const coords = cityCoords(city);
     const donor = {
       _id: `d${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
       userId: user._id,
@@ -58,8 +60,8 @@ router.post('/', authenticateToken, requireVerifiedStaff, async (req, res) => {
       age: age ? Number(age) : null,
       city,
       area: city,
-      lat: null,
-      lng: null,
+      lat: coords ? coords.lat : null,
+      lng: coords ? coords.lng : null,
       lastDonationDate: null,
       isAvailable: true,
       rating: 4.0,
