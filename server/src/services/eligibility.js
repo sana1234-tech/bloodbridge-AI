@@ -33,9 +33,13 @@ function donorEligibility(donor) {
   if (days >= gap) {
     return { eligible: true, reason: `Donated ${days} days ago — outside the ${gap}-day resting window`, daysSinceLastDonation: days, requiredGapDays: gap };
   }
+  const remaining = Math.max(0, gap - days);
+  if (remaining === 0) {
+    return { eligible: true, reason: `Resting period complete (donated ${days} days ago, needed ${gap})`, daysSinceLastDonation: days, requiredGapDays: gap };
+  }
   return {
     eligible: false,
-    reason: `Resting period — ${gap - days} day(s) until eligible (donated ${days} days ago, needs ${gap})`,
+    reason: `Resting period — ${remaining} day(s) until eligible (donated ${days} days ago, needs ${gap})`,
     daysSinceLastDonation: days,
     requiredGapDays: gap,
   };

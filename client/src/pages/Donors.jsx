@@ -114,13 +114,13 @@ export default function Donors() {
                 {donor.eligibility && (
                   <span
                     className={`px-2 py-0.5 rounded-full ${
-                      donor.eligibility.eligible
+                      donor.eligibility.eligible || (donor.eligibility.requiredGapDays - donor.eligibility.daysSinceLastDonation) <= 0
                         ? 'bg-teal-50 text-teal-600'
                         : 'bg-amber-50 text-amber-600'
                     }`}
                     title={donor.eligibility.reason}
                   >
-                    {donor.eligibility.eligible
+                    {donor.eligibility.eligible || (donor.eligibility.requiredGapDays - donor.eligibility.daysSinceLastDonation) <= 0
                       ? 'Eligible to donate'
                       : `Resting (${donor.eligibility.requiredGapDays - donor.eligibility.daysSinceLastDonation}d left)`}
                   </span>

@@ -109,7 +109,7 @@ function findMatchingDonors(requestId) {
   return {
     request: {
       id: request._id,
-      patientName: request.patientName,
+      // patientName excluded — never exposed in match results
       bloodGroup: request.bloodGroup,
       unitsNeeded: request.unitsNeeded,
       urgencyLevel: request.urgencyLevel,

@@ -97,8 +97,8 @@ export default function DonorMatch() {
               AI Donor Match Results
             </h1>
             <p className="text-gray-500 text-sm mt-1">
-              Patient: <span className="font-medium text-gray-700">{request?.patientName}</span> |
               Hospital: <span className="font-medium text-gray-700">{request?.hospital}</span>
+              {request?.hospitalArea && <span> · <span className="font-medium text-gray-700">{request.hospitalArea}</span></span>}
             </p>
           </div>
           <div className="flex items-center gap-4">
