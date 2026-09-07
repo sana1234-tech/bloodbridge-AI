@@ -61,6 +61,12 @@ function seedData() {
     const lastDonation = new Date();
     lastDonation.setDate(lastDonation.getDate() - daysAgo);
 
+    // Backdate registration so seeded demo donors look established — only
+    // genuinely new signups get the "recently registered" match visibility
+    // flag (otherwise every cold-start re-seed would flag all 150 donors).
+    const registeredAt = new Date();
+    registeredAt.setDate(registeredAt.getDate() - randInt(20, 365));
+
     db.donors.data.push({
       _id: `d${String(i + 1).padStart(4, '0')}`,
       name: `${pick(FIRST_NAMES)} ${pick(LAST_NAMES)}`,
@@ -75,7 +81,7 @@ function seedData() {
       isAvailable: Math.random() > 0.2,
       rating: parseFloat(rand(3.0, 5.0).toFixed(1)),
       totalDonations: randInt(0, 15),
-      createdAt: new Date(),
+      createdAt: registeredAt,
     });
   }
 
