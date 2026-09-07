@@ -1,36 +1,43 @@
 # BloodBridge AI — Project Summary
 
-*For judges — a 2-minute read before the presentation.*
-
 **Live product:** https://bloodbridge-ai-two.vercel.app
 **Source code:** https://github.com/sana1234-tech/bloodbridge-AI
 **Demo admin:** phone `03000000001` · password `admin123`
 
----
+## The problem, and who it affects
 
-## What it does
+When a patient in Pakistan needs blood urgently, their family enters a desperate phone tree — calling relatives, posting on Facebook and WhatsApp, and driving from one blood bank to another while the clock runs out. Three failures compound the crisis. First, matching is manual and slow: there is no single place where a verified medical need meets willing, *eligible* donors. Second, safety rules are ignored: Pakistan's blood transfusion guidelines require a 90-day rest between donations for men and 120 days for women, yet informal networks contact whoever answers the phone, regardless of eligibility — putting donors and patients at medical risk. Third, anyone can post anything: unverified requests circulate publicly with patient names and donor phone numbers attached, with no way to tell a genuine hospital need from spam, and privacy is traded away in the panic.
 
-When a patient in Pakistan needs blood urgently, families burn hours in a phone tree — calling relatives, posting on Facebook, driving from bank to bank. BloodBridge AI replaces that with one platform: a **verified hospital staff member** posts an emergency request, and the system instantly ranks medically eligible, compatible donors by blood type, distance, donation recency, and reliability — while **hard-blocking anyone still inside the mandatory 90-day (men) / 120-day (women) resting window** per Pakistan Blood Transfusion Authority guidelines.
+This affects patients in emergencies, childbirth, surgery and accidents; thalassemia and dialysis patients who need transfusions every 2–4 weeks for life (Pakistan carries one of the world's largest thalassemia burdens); hospitals and blood banks coordinating under time pressure with no forecasting; and voluntary donors who want to help safely.
 
-Donors see only what they need to decide — blood group, units, hospital, urgency. Patient identity stays private. And every request and fulfillment feeds a 7-day demand forecasting engine that backtests its own accuracy live in the product.
+## Our solution, and the audience it serves
 
-## Who it's for
+BloodBridge AI is a working emergency blood coordination platform, deployed live, built around three coordinated systems.
 
-- **Hospital and blood-bank staff** — post emergency requests, but only after registering with their institution details and being approved by a verified admin
-- **Voluntary donors** — register with an 8-question health pre-screening, respond to nearby requests
-- **The patients they serve** — emergencies, childbirth, surgery, accidents, and thalassemia patients who need a transfusion every 2–4 weeks for life
+**Safety-first donor matching.** A verified staff member posts an emergency request, and the system instantly ranks compatible donors by blood type (with O-negative treated as the universal donor), haversine distance, donation recency, and donor reliability. The critical difference: donors still inside the mandatory 90/120-day resting window are *hard-blocked* — excluded entirely, never just ranked lower — and the blocked count is displayed live on every match. Newly registered donors are guaranteed visible in results for their first 24 hours, badged "New Donor," and results re-rank live on every view, so a compatible donor who signs up after a request is posted still appears immediately.
 
-## What we built — working today in production
+**Self-verifying demand forecasts.** Seven-day predictions per city and blood group, built from a weighted 14-day moving average, linear-regression trend, and weekday seasonality. The model backtests itself daily against real demand — currently ~80–84% accuracy across 112 forecasts — with the number displayed live in the product. Proven, not claimed.
 
-- **Full-stack app** (React 19 + Express, JWT authentication with bcrypt-hashed passwords), deployed live on Vercel
-- **Two-role access control:** staff start *pending* and require admin approval in a built-in Verification Panel before they can post; donors register openly with health screening
-- **8-question donor health screening** (fever, HIV, hepatitis, chronic conditions, medication, recent procedures, pregnancy, malaria travel) — answers become safety flags visible to staff only, never to other donors
-- **AI matching** with O- universal-donor logic, haversine distance scoring with city-center fallbacks, the resting-window safety filter, and a 24-hour visibility guarantee so newly registered donors are never buried
-- **Privacy by default:** patient names and donor phone numbers never exposed in public or donor-facing views; staff record a private internal reference instead
-- **Self-verifying demand forecasts:** 7-day predictions per city and blood group, backtested at ~80–84% accuracy, displayed live in the Analytics page
-- **Replacement-donor registration** (walk-in donors tagged with the registering institution), assistant chatbot, dashboard, and analytics
-- **Field-hardened:** bugs found in real testing — negative resting countdowns, patient-name leakage into match views, and new donors being silently excluded from matching — were each reproduced, fixed, and re-verified on the live deployment
+**An assistant chatbot** that answers compatibility, eligibility, and inventory questions instantly.
 
-## Honest scope
+The platform serves **verified hospital and blood-bank staff**, who post requests; **screened voluntary donors**, who register and respond; and **coordinators**, who use forecasts to plan stock.
 
-The prototype uses in-memory storage (serverless deployments re-seed on cold start). Full production needs a real database and SMS/WhatsApp notifications — the roadmap for each is concrete.
+## The need it addresses, and the impact it makes
+
+Every emergency that starts with an AI match instead of a phone tree saves the most expensive currency in medicine: time. In a live demo request, the system surfaced 10 ranked, medically eligible donors in seconds while automatically blocking 14 others inside their resting window — each blocked donor is a complication that never happens. Only verified institutions can ask the public for blood; every donor is health-screened before entering the pool; and patient identity never leaves the hospital. The system closes its own data loop: confirmed fulfillments put donors into their resting windows, restock surplus units into hospital inventory, and feed real outcomes back into the forecast model — so it gets smarter with use.
+
+## Innovation and technology
+
+**Trust is engineered, not assumed.** Two account types, JWT-authenticated with bcrypt-hashed passwords. Staff register with institution name and license number and start *pending*; a verified admin approves or rejects them in a built-in Verification Panel — only approved staff can post requests. Donors complete an 8-question health pre-screening at signup (fever, HIV, hepatitis, chronic conditions, medication, recent procedures, pregnancy, malaria travel); answers become safety flags visible to hospital staff only, never to other donors. Verified staff can also register walk-in replacement donors brought by a patient's family, tagged with their institution.
+
+**Privacy by default.** Patient names never appear in public or donor-facing views — only blood group, units, hospital, city, and urgency. Staff record a private internal reference for their own records instead. Donor phone numbers are masked in the public directory and revealed only to the staff member who posted that specific request. All validation, masking, and eligibility rules live server-side and cannot be bypassed from the browser.
+
+**Stack.** React 19 + Vite + Tailwind + Recharts frontend; Node.js/Express API; in-memory store with disk persistence and Mongoose-ready schemas for a MongoDB upgrade; deployed as a serverless production build on Vercel.
+
+## Feasibility — what we have actually built
+
+Everything above runs today, live on the internet. The full lifecycle works end-to-end: admin login → post request → AI match with ineligible donors blocked → donor responds with health screening on file → posting staff see contacts and safety flags → fulfillment confirmed → donors enter resting windows, inventory restocks, and the forecast learns. The app is seeded with 150 donors, 19 real hospitals and blood banks, and 90 days of demand history across six Pakistani cities. Real bugs found during testing — negative resting countdowns, patient-name leakage into match views, and new donors being silently excluded from matching — were each reproduced, fixed, and re-verified on the live deployment.
+
+We state our scope honestly: the prototype uses in-memory storage, so full production still needs a real database and SMS/WhatsApp notifications. The roadmap for each is concrete.
+
+**Every drop, matched in seconds. Safely.**
