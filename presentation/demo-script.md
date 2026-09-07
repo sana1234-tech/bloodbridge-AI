@@ -114,8 +114,8 @@ Open **Analytics**.
 
 > "Blood banks usually plan by gut feeling. BloodBridge forecasts demand per
 > city and blood group for the next 7 days — and we don't just claim it works:
-> the model backtests itself against real history, around 80–84% accuracy,
-> displayed live in the product."
+> the model backtests itself against real history — the accuracy score is
+> computed across 672 forecasts and shown live in the product."
 
 ---
 

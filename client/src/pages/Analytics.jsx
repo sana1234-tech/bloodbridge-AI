@@ -21,7 +21,7 @@ export default function Analytics() {
 
     Promise.all([
       api.getPredictions(params),
-      api.getPredictionAccuracy({ city: params.city, bloodGroup: params.bloodGroup }),
+      api.getPredictionAccuracy(params),
     ])
       .then(([predData, accData]) => {
         setPredictions(predData);

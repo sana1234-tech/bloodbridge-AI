@@ -16,7 +16,7 @@ BloodBridge AI is a working emergency blood coordination platform, deployed live
 
 **Safety-first donor matching.** A verified staff member posts an emergency request, and the system instantly ranks compatible donors by blood type (with O-negative treated as the universal donor), haversine distance, donation recency, and donor reliability. The critical difference: donors still inside the mandatory 90/120-day resting window are *hard-blocked* — excluded entirely, never just ranked lower — and the blocked count is displayed live on every match. Newly registered donors are guaranteed visible in results for their first 24 hours, badged "New Donor," and results re-rank live on every view, so a compatible donor who signs up after a request is posted still appears immediately.
 
-**Self-verifying demand forecasts.** Seven-day predictions per city and blood group, built from a weighted 14-day moving average, linear-regression trend, and weekday seasonality. The model backtests itself daily against real demand — currently ~80–84% accuracy across 112 forecasts — with the number displayed live in the product. Proven, not claimed.
+**Self-verifying demand forecasts.** Seven-day predictions per city and blood group, built from a weighted 14-day moving average, linear-regression trend, and weekday seasonality. The model backtests itself daily against real demand — accuracy across 672 backtested forecasts, per city and blood group, is displayed live in the product. Proven, not claimed.
 
 **An assistant chatbot** that answers compatibility, eligibility, and inventory questions instantly.
 
