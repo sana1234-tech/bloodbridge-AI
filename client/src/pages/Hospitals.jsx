@@ -112,8 +112,8 @@ export default function Hospitals() {
             Hospitals & Blood Banks
           </h1>
           <p className="text-gray-500 text-sm mt-1">
-            Addresses, helplines and live inventory across Pakistan. Tap an address or use
-            Directions to open it in Google Maps.
+            Verified addresses and helplines across Pakistan. Open any facility in Google Maps
+            or tap Directions for turn-by-turn navigation.
           </p>
         </div>
         <button
@@ -183,10 +183,13 @@ export default function Hospitals() {
             const address = hospital.address
               || [hospital.area, hospital.city].filter(Boolean).join(', ');
             const helpline = hospital.helpline || hospital.phone;
+            const altPhone = hospital.phone && hospital.phone !== helpline ? hospital.phone : null;
             const mapUrl = hospital.mapUrl
               || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${hospital.name}, ${address}`)}`;
             const directionsUrl = hospital.directionsUrl
               || `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${hospital.name}, ${address}`)}`;
+            const totalStock = getTotalStock(hospital);
+            const inventoryReported = totalStock > 0 || Boolean(hospital.inventoryUpdatedAt);
             const distance = userLocation
               && Number.isFinite(hospital.lat) && Number.isFinite(hospital.lng)
               ? distanceKm(userLocation.lat, userLocation.lng, hospital.lat, hospital.lng)
@@ -229,8 +232,17 @@ export default function Hospitals() {
                         >
                           <Phone className="w-3.5 h-3.5" /> Helpline: {helpline}
                         </a>
+                        {altPhone && (
+                          <a
+                            href={telHref(altPhone)}
+                            className="flex items-center gap-1 text-gray-600 font-medium hover:underline whitespace-nowrap"
+                          >
+                            <Phone className="w-3.5 h-3.5" /> Main: {altPhone}
+                          </a>
+                        )}
                         <span className="flex items-center gap-1 whitespace-nowrap">
-                          <Droplets className="w-3.5 h-3.5 text-red-400" /> {getTotalStock(hospital)} total units
+                          <Droplets className="w-3.5 h-3.5 text-red-400" />
+                          {inventoryReported ? `${totalStock} total units` : 'Inventory not reported'}
                         </span>
                         {distance !== null && (
                           <span className="flex items-center gap-1 whitespace-nowrap text-gray-700 font-medium">
@@ -240,31 +252,48 @@ export default function Hospitals() {
                       </div>
                     </div>
 
-                    <a
-                      href={directionsUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 text-xs font-semibold text-white bg-gray-800 hover:bg-gray-900 px-3 py-2 rounded-lg whitespace-nowrap"
-                    >
-                      <Navigation className="w-3.5 h-3.5" /> Directions
-                    </a>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <a
+                        href={mapUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 px-3 py-2 rounded-lg whitespace-nowrap"
+                      >
+                        <MapPin className="w-3.5 h-3.5" /> Map
+                      </a>
+                      <a
+                        href={directionsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 text-xs font-semibold text-white bg-gray-800 hover:bg-gray-900 px-3 py-2 rounded-lg whitespace-nowrap"
+                      >
+                        <Navigation className="w-3.5 h-3.5" /> Directions
+                      </a>
+                    </div>
                   </div>
 
                   {/* Blood Inventory Grid */}
-                  <div className="grid grid-cols-4 sm:grid-cols-8 gap-2 mt-4">
-                    {BLOOD_GROUPS.map((bg) => {
-                      const stock = getStock(hospital, bg);
-                      const level = stock > 40 ? 'text-green-600 bg-green-50' : stock > 15 ? 'text-yellow-600 bg-yellow-50' : 'text-red-600 bg-red-50';
-                      return (
-                        <div key={bg} className="text-center">
-                          <p className="text-xs text-gray-500 font-medium mb-1">{bg}</p>
-                          <div className={`rounded-lg py-1.5 text-sm font-bold ${level}`}>
-                            {stock}
+                  {inventoryReported ? (
+                    <div className="grid grid-cols-4 sm:grid-cols-8 gap-2 mt-4">
+                      {BLOOD_GROUPS.map((bg) => {
+                        const stock = getStock(hospital, bg);
+                        const level = stock > 40 ? 'text-green-600 bg-green-50' : stock > 15 ? 'text-yellow-600 bg-yellow-50' : 'text-red-600 bg-red-50';
+                        return (
+                          <div key={bg} className="text-center">
+                            <p className="text-xs text-gray-500 font-medium mb-1">{bg}</p>
+                            <div className={`rounded-lg py-1.5 text-sm font-bold ${level}`}>
+                              {stock}
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="mt-4 text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
+                      This facility has not reported blood inventory yet. Call the helpline for
+                      current availability.
+                    </p>
+                  )}
                 </div>
               </div>
             );

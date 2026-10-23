@@ -1,7 +1,5 @@
 const db = require('../store');
 
-const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
-
 /**
  * Core forecast for one (city, blood group) series: weighted 14-day moving
  * average + linear regression trend + weekday multiplier.
@@ -38,7 +36,10 @@ function predictDemand(city, bloodGroup, days = 7) {
   if (bloodGroup) records = records.filter(r => r.bloodGroup === bloodGroup);
 
   if (records.length === 0) {
-    return generateFallback(city, bloodGroup, days);
+    // No real demand history yet. Return an empty forecast rather than
+    // inventing numbers; the Analytics page tells the user to post/fulfill
+    // requests first so the model can learn from actual usage.
+    return [];
   }
 
   // Group by city + bloodGroup
@@ -163,35 +164,6 @@ function backtestAccuracy(city, bloodGroup, testDays = 14) {
     // Sorted worst-first so the riskiest series stand out
     groups: groups.sort((a, b) => a.accuracy - b.accuracy),
   };
-}
-
-function generateFallback(city, bloodGroup, days) {
-  const predictions = [];
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const cities = city ? [city] : ['Lahore', 'Karachi', 'Islamabad', 'Rawalpindi', 'Faisalabad', 'Multan'];
-  const groups = bloodGroup ? [bloodGroup] : BLOOD_GROUPS;
-
-  cities.forEach(c => {
-    groups.forEach(bg => {
-      const base = bg === 'O+' ? 18 : bg === 'B+' ? 16 : bg === 'A+' ? 13 : 8;
-      for (let d = 1; d <= days; d++) {
-        const fd = new Date(today);
-        fd.setDate(today.getDate() + d);
-        const dow = fd.getDay();
-        const mul = dow >= 1 && dow <= 5 ? 1.15 : 0.82;
-        const demand = Math.round(base * mul);
-        const fulfilled = Math.round(demand * 0.8);
-        predictions.push({
-          date: fd.toISOString().split('T')[0], city: c, bloodGroup: bg,
-          predictedDemand: demand, predictedFulfillment: fulfilled,
-          gap: demand - fulfilled, riskLevel: 'stable', fulfillmentRate: 80.0, trend: 'stable',
-        });
-      }
-    });
-  });
-
-  return predictions;
 }
 
 module.exports = { predictDemand, backtestAccuracy, forecastUnits };

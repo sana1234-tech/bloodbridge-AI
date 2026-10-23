@@ -100,6 +100,13 @@ const SCREENING = {
       && h.directionsUrl?.startsWith('https://www.google.com/maps/dir/')
     )
   );
+  check(
+    'map links resolve by facility name + address',
+    hospitals.data?.length > 0 && hospitals.data.every(h =>
+      h.mapUrl?.includes(encodeURIComponent(h.name))
+      && h.directionsUrl?.includes(encodeURIComponent(h.address))
+    )
+  );
   const hospitalDetail = hospital?._id ? await j('GET', `/hospitals/${hospital._id}`) : { status: 0, data: {} };
   check('hospital detail returns map links', hospitalDetail.status === 200 && Boolean(hospitalDetail.data.mapUrl));
 

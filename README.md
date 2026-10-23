@@ -27,7 +27,7 @@ In a blood emergency, families in Pakistan waste critical hours calling relative
 | **Closed Data Loop** | Every request and fulfillment updates demand history, donor availability, and hospital inventory — so predictions learn from real usage, not just seed data. Surplus donated units restock the bank automatically. |
 | **Privacy by Default** | Patient names never appear in public or donor-facing views (only blood group, units, hospital, city, urgency). Staff record a private internal reference instead. Donor phone numbers are masked in the public directory and revealed only to the staff member who posted that specific request. |
 | **Replacement Donors** | Verified staff can register walk-in donors brought by a patient's family, tagged with their institution, adding them to the matched pool. |
-| **Assistant Chatbot** | Instant answers on compatibility, eligibility rules, live inventory, and how requests work — staff-only posting is explained right in the chat. |
+| **Assistant Chatbot** | Instant answers on compatibility, eligibility rules, reported inventory, and how requests work — staff-only posting is explained right in the chat. |
 | **Validation & Persistence** | All API inputs are validated (blood group enums, Pakistani phone format, units 1-20, hospital existence). With `MONGO_URI` set, data is stored durably in MongoDB; without it, local development falls back to a JSON file. |
 
 ## Screenshots
@@ -70,18 +70,19 @@ Copy `server/.env.example` to `server/.env` (or set these in Vercel → Project 
 | `JWT_SECRET` | **Production: yes** | Long random string (32+ chars). The server refuses to start in production without it, so tokens can never be forged with a known default. |
 | `ADMIN_PASSWORD` | Production: recommended | Password for the seeded admin (`03000000001`). Without it, production generates a random one-time password on each cold start and logs it once. |
 | `MONGO_URI` | **Production: yes** | MongoDB Atlas connection string. When set, data survives restarts/cold starts and is shared by all instances. Without it, the app uses the local JSON snapshot (not persistent on Vercel). |
+| `SEED_DEMO_DATA` | No | Set `true` to add the 150 synthetic donors and 90 days of demand history on first boot. Defaults to `true` locally and `false` on production/Vercel. The 19 real hospital/blood-bank records are always seeded. |
 | `ALLOWED_ORIGINS` | No | Comma-separated cross-origin frontends. Leave empty for same-origin only. |
 
 Rotating `JWT_SECRET` invalidates all existing sessions (users must log in again).
 
 #### Storage modes
 
-- **MongoDB** (`MONGO_URI` set): collections are created automatically on first boot. If they are empty, the demo dataset is seeded once. Reads come from an in-memory cache; each successful mutation is diffed and upserted to MongoDB before the response is sent. Recommended for Vercel/production.
+- **MongoDB** (`MONGO_URI` set): collections are created automatically on first boot. If they are empty, the 19 real hospital/blood-bank records and the admin account are seeded once. Synthetic donors/demand are added only when `SEED_DEMO_DATA=true`. Reads come from an in-memory cache; each successful mutation is diffed and upserted to MongoDB before the response is sent. Recommended for Vercel/production.
   - Create a free MongoDB Atlas cluster, add a database user, and allow your deployment to connect (for Vercel, allow `0.0.0.0/0` or use Atlas IP access lists).
   - Put the `mongodb+srv://...` connection string in `MONGO_URI`.
 - **JSON file** (no `MONGO_URI`): data is written to `server/data/bloodbridge-data.json` on every successful mutation. Perfect for local demos, but the Vercel filesystem is ephemeral — configure MongoDB there.
-- To reset local demo data: stop the server, delete `server/data/bloodbridge-data.json`, restart — a fresh dataset (150 donors, 19 hospitals/blood banks, 90 days of demand history across 6 cities) is seeded automatically.
-- To reset a MongoDB demo database: drop the `bloodbridge` database in Atlas (or delete the six app collections), then restart.
+- To reset local data: stop the server, delete `server/data/bloodbridge-data.json`, restart. On local development a fresh dataset includes 150 synthetic donors, 19 real hospitals/blood banks, and 90 days of demand history across 6 cities. Set `SEED_DEMO_DATA=false` if you want the real facility directory without synthetic records.
+- To reset a MongoDB database: drop the `bloodbridge` database in Atlas (or delete the six app collections), then restart.
 - To run the API test suite: `cd server && node smoke-test.js` (server must be running; uses `ADMIN_PASSWORD`, defaulting to `admin123` locally).
 
 ## API Overview

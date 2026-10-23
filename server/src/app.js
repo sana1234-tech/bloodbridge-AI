@@ -7,7 +7,7 @@
  */
 const express = require('express');
 const cors = require('cors');
-const { seedData } = require('./seeds/seedInMemory');
+const { seedData, shouldSeedDemoData } = require('./seeds/seedInMemory');
 const { enrichHospitals } = require('./hospitalDirectory');
 const db = require('./store');
 
@@ -66,8 +66,12 @@ function initialize() {
       const { mode, hadData } = await db.init();
 
       if (!hadData) {
-        console.log(`No data found (${mode}). Seeding fresh demo data...`);
-        seedData();
+        const includeDemo = shouldSeedDemoData();
+        console.log(
+          `No data found (${mode}). Seeding verified facility directory`
+          + `${includeDemo ? ' + local demo data' : ''}...`
+        );
+        seedData({ includeDemo });
         await db.persist({ force: true });
       } else {
         // Existing snapshots may predate the hospital address/helpline fields.

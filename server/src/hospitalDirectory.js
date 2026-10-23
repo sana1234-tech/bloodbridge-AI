@@ -1,32 +1,29 @@
 /**
- * Static directory of demo hospitals and blood banks.
+ * Public directory of hospitals and blood banks.
  *
- * Every entry includes a human-readable address and a helpline number so the
- * UI can show exactly where the facility is and let users call or navigate to
- * it. `lat`/`lng` are used to build Google Maps links and (in the browser) to
- * sort the directory by distance from the user's current location.
- *
- * These are seeded demo records. Replace the addresses/numbers with verified
- * facility data before using this in a real emergency-coordination service.
+ * Addresses and helplines are taken from official hospital / NGO contact pages
+ * and Punjab Blood Transfusion Authority listings. `lat`/`lng` are used only
+ * for nearest-first sorting; Google Maps links use the facility name plus the
+ * full street address so the pin always resolves to the real place.
  */
 
 const HOSPITALS_DATA = [
   {
     name: 'Jinnah Hospital Lahore',
     city: 'Lahore',
-    area: 'Johar Town',
-    address: 'Ferozepur Road, Johar Town, Lahore',
+    area: 'Faisal Town',
+    address: 'Allama Shabbir Ahmed Usmani Road, Faisal Town, Lahore 54550',
     lat: 31.4828,
-    lng: 74.2968,
-    phone: '042-99231040',
-    helpline: '042-99231040',
+    lng: 74.298,
+    phone: '042-99231480',
+    helpline: '042-99231400',
     type: 'hospital',
   },
   {
-    name: 'Shaukat Khanum Memorial Hospital',
+    name: 'Shaukat Khanum Memorial Cancer Hospital & Research Centre',
     city: 'Lahore',
     area: 'Johar Town',
-    address: '7-A Block R-3, Johar Town, Lahore',
+    address: '7-A Block R-3, M.A. Johar Town, Lahore 54000',
     lat: 31.4788,
     lng: 74.2755,
     phone: '042-35905000',
@@ -37,40 +34,40 @@ const HOSPITALS_DATA = [
     name: 'Mayo Hospital Lahore',
     city: 'Lahore',
     area: 'Anarkali',
-    address: 'Hospital Road, Anarkali, Lahore',
+    address: 'Hospital Road, Anarkali Bazaar, Lahore 54000',
     lat: 31.5619,
     lng: 74.3124,
-    phone: '042-99210202',
-    helpline: '042-99210202',
+    phone: '042-99211127',
+    helpline: '042-99211127',
     type: 'hospital',
   },
   {
-    name: 'Alkhidmat Blood Bank Lahore',
+    name: 'Alkhidmat Foundation Blood Bank Lahore',
     city: 'Lahore',
-    area: 'Gulberg III',
-    address: 'Alkhidmat Complex, Khayaban-e-Jinnah, Gulberg III, Lahore',
-    lat: 31.5163,
-    lng: 74.3457,
-    phone: '042-35762183',
-    helpline: '042-35762183',
+    area: 'Khayaban-e-Jinnah',
+    address: 'Alkhidmat Complex, 3 km Khayaban-e-Jinnah, next to Water Filtration Plant, Dream Villas, Lahore 54000',
+    lat: 31.468,
+    lng: 74.4055,
+    phone: '042-38020222',
+    helpline: '0800-44448',
     type: 'blood_bank',
   },
   {
-    name: 'Sundas Blood Bank Lahore',
+    name: 'Sundas Foundation Blood Bank Lahore',
     city: 'Lahore',
-    area: 'Model Town',
-    address: 'Model Town Link Road, Model Town, Lahore',
-    lat: 31.5065,
-    lng: 74.3264,
-    phone: '042-35835221',
-    helpline: '042-35835221',
+    area: 'Shadman',
+    address: '880 Shadman-1, near Crescent Girls School, Lahore',
+    lat: 31.5343,
+    lng: 74.3303,
+    phone: '042-37422131',
+    helpline: '042-111-786-327',
     type: 'blood_bank',
   },
   {
-    name: 'Jinnah Postgraduate Medical Centre',
+    name: 'Jinnah Postgraduate Medical Centre (JPMC)',
     city: 'Karachi',
     area: 'Saddar',
-    address: 'Rafiqui Shaheed Road, Saddar, Karachi',
+    address: 'Rafiqui Shaheed Road, Karachi 75510',
     lat: 24.8571,
     lng: 67.0245,
     phone: '021-99201300',
@@ -81,7 +78,7 @@ const HOSPITALS_DATA = [
     name: 'Aga Khan University Hospital',
     city: 'Karachi',
     area: 'Stadium Road',
-    address: 'Stadium Road, Karachi',
+    address: 'Stadium Road, P.O. Box 3500, Karachi 74800',
     lat: 24.8907,
     lng: 67.0755,
     phone: '021-111-911-911',
@@ -92,44 +89,44 @@ const HOSPITALS_DATA = [
     name: 'Liaquat National Hospital',
     city: 'Karachi',
     area: 'Stadium Road',
-    address: 'National Stadium Road, Gulshan-e-Iqbal, Karachi',
-    lat: 24.8943,
-    lng: 67.0787,
-    phone: '021-99258000',
-    helpline: '021-99258000',
+    address: 'Stadium Road, Karachi 74800',
+    lat: 24.8931,
+    lng: 67.0684,
+    phone: '021-111-456-456',
+    helpline: '021-111-456-456',
     type: 'hospital',
   },
   {
     name: 'Fatimid Foundation Blood Bank Karachi',
     city: 'Karachi',
-    area: 'Gulshan-e-Iqbal',
-    address: '393/2, Chandni Chowk, Gulshan-e-Iqbal, Karachi',
-    lat: 24.9167,
-    lng: 67.095,
-    phone: '021-34980824',
-    helpline: '021-34980824',
+    area: 'Garden East',
+    address: '393 Britto Road, Garden East, Karachi 74800',
+    lat: 24.8816,
+    lng: 67.0336,
+    phone: '021-32225284',
+    helpline: '021-32225284',
     type: 'blood_bank',
   },
   {
-    name: 'Indus Hospital Blood Bank',
+    name: 'Indus Hospital & Health Network Blood Bank',
     city: 'Karachi',
     area: 'Korangi',
-    address: 'Plot C-76, Sector 31/5, Korangi Crossing, Karachi',
+    address: 'Plot C-76, Sector 31/5, opposite Darussalam Society, Korangi Crossing, Karachi 75190',
     lat: 24.8394,
     lng: 67.191,
-    phone: '021-111-463-874',
-    helpline: '021-111-463-874',
+    phone: '021-35112709',
+    helpline: '021-35112206',
     type: 'blood_bank',
   },
   {
     name: 'Pakistan Institute of Medical Sciences (PIMS)',
     city: 'Islamabad',
     area: 'G-8/3',
-    address: 'G-8/3, Islamabad',
+    address: 'Ibn-e-Sina Road, G-8/3, Islamabad',
     lat: 33.726,
     lng: 73.068,
-    phone: '051-9261161',
-    helpline: '051-9261161',
+    phone: '051-9261170',
+    helpline: '051-9261170',
     type: 'hospital',
   },
   {
@@ -144,58 +141,58 @@ const HOSPITALS_DATA = [
     type: 'hospital',
   },
   {
-    name: 'Alkhidmat Blood Bank Islamabad',
+    name: 'Al-Khidmat Raazi Hospital Blood Bank',
     city: 'Islamabad',
-    area: 'G-11',
-    address: 'G-11 Markaz, Islamabad',
-    lat: 33.7084,
-    lng: 73.0084,
-    phone: '051-2103214',
-    helpline: '051-2103214',
+    area: 'CBR Town',
+    address: 'Street 37, CBR Town Phase I Block C, Islamabad',
+    lat: 33.5573,
+    lng: 73.1409,
+    phone: '051-2374911',
+    helpline: '051-2374911',
     type: 'blood_bank',
   },
   {
     name: 'Holy Family Hospital',
     city: 'Rawalpindi',
     area: 'Satellite Town',
-    address: 'Satellite Town, Rawalpindi',
+    address: 'Holy Family Road, Block F, Satellite Town, Rawalpindi',
     lat: 33.6082,
     lng: 73.0578,
-    phone: '051-9290300',
-    helpline: '051-9290300',
+    phone: '051-9290322',
+    helpline: '051-9290321',
     type: 'hospital',
   },
   {
-    name: 'Armed Forces Institute of Transfusion',
+    name: 'Armed Forces Institute of Transfusion (AFIT)',
     city: 'Rawalpindi',
     area: 'Cantt',
-    address: 'CMH Road, Rawalpindi Cantt',
-    lat: 33.5938,
-    lng: 73.0562,
-    phone: '051-5521874',
-    helpline: '051-5521874',
+    address: 'Sher Khan Road, Rawalpindi 46000',
+    lat: 33.5982,
+    lng: 73.0372,
+    phone: '051-111-222-900',
+    helpline: '051-111-222-900',
     type: 'blood_bank',
   },
   {
     name: 'Allied Hospital Faisalabad',
     city: 'Faisalabad',
-    area: 'Peoples Colony',
-    address: 'Jail Road, Peoples Colony, Faisalabad',
-    lat: 31.4186,
+    area: 'Jail Road',
+    address: 'Jail Road, near Sargodha Road, Faisalabad',
+    lat: 31.4491,
     lng: 73.0808,
-    phone: '041-9220090',
-    helpline: '041-9220090',
+    phone: '041-9210095',
+    helpline: '041-9210095',
     type: 'hospital',
   },
   {
     name: 'Faisalabad Institute of Cardiology',
     city: 'Faisalabad',
-    area: 'Jinnah Colony',
-    address: 'Jail Road, Faisalabad',
-    lat: 31.4142,
-    lng: 73.0992,
-    phone: '041-9330017',
-    helpline: '041-9330017',
+    area: 'Civil Lines',
+    address: 'Club Road, opposite Chenab Club, Faisalabad',
+    lat: 31.4227,
+    lng: 73.0866,
+    phone: '041-9201529',
+    helpline: '041-9201529',
     type: 'hospital',
   },
   {
@@ -203,36 +200,42 @@ const HOSPITALS_DATA = [
     city: 'Multan',
     area: 'Nishtar Road',
     address: 'Nishtar Road, Multan',
-    lat: 30.1848,
-    lng: 71.478,
-    phone: '061-9200143',
-    helpline: '061-9200143',
+    lat: 30.2026,
+    lng: 71.4435,
+    phone: '061-9200238',
+    helpline: '061-9200238',
     type: 'hospital',
   },
   {
-    name: 'Alkhidmat Blood Bank Multan',
+    name: 'Fatimid Foundation Blood Bank Multan',
     city: 'Multan',
-    area: 'Gulgasht Colony',
-    address: 'Gulgasht Colony, Multan',
-    lat: 30.1741,
-    lng: 71.5199,
-    phone: '061-4542961',
-    helpline: '061-4542961',
+    area: 'Shah Rukn-e-Alam Colony',
+    address: 'J-26, T Chowk, Shah Rukn-e-Alam Colony, Multan',
+    lat: 30.1923,
+    lng: 71.5033,
+    phone: '061-4554520',
+    helpline: '061-4554520',
     type: 'blood_bank',
   },
 ];
 
+/**
+ * Build a Google Maps query from the facility name and street address.
+ * Coordinates are deliberately not used: a name+address search resolves to
+ * the actual Google Maps place, while a stale pin can point to the wrong gate.
+ */
 function mapsQuery(hospital) {
+  const address = hospital.address || [hospital.area, hospital.city].filter(Boolean).join(', ');
+  const label = [hospital.name, address].filter(Boolean).join(', ');
+  if (label) return encodeURIComponent(label);
+
   const lat = Number(hospital.lat);
   const lng = Number(hospital.lng);
-  if (Number.isFinite(lat) && Number.isFinite(lng)) {
-    return `${lat},${lng}`;
-  }
-  const address = hospital.address || [hospital.area, hospital.city].filter(Boolean).join(', ');
-  return encodeURIComponent(`${hospital.name}, ${address}`);
+  if (Number.isFinite(lat) && Number.isFinite(lng)) return `${lat},${lng}`;
+  return '';
 }
 
-/** Public hospital view with clickable map links and safe fallbacks. */
+/** Public hospital view with clickable Google Maps links and safe fallbacks. */
 function hospitalView(hospital) {
   const query = mapsQuery(hospital);
   return {
@@ -245,26 +248,23 @@ function hospitalView(hospital) {
 }
 
 /**
- * Backfill address/helpline on records seeded before these fields existed.
- * Matches by stable seed `_id` first, then by name + city, so user-created
- * hospitals are never modified.
+ * Backfill and correct the seeded 19-facility directory on older snapshots.
+ * Matches by stable seed `_id` only, so user-created hospitals are never
+ * modified. Overwrites stale demo addresses, phone numbers and coordinates.
  */
 function enrichHospitals(hospitals) {
   let changed = false;
   HOSPITALS_DATA.forEach((seed, index) => {
     const id = `h${String(index + 1).padStart(3, '0')}`;
-    const hospital = hospitals.find(h => h._id === id)
-      || hospitals.find(h => h.name === seed.name && h.city === seed.city);
-    if (!hospital || hospital._id === undefined) return;
+    const hospital = hospitals.find(h => h._id === id);
+    if (!hospital) return;
 
-    if (!hospital.address && seed.address) {
-      hospital.address = seed.address;
-      changed = true;
-    }
-    if (!hospital.helpline && (seed.helpline || seed.phone)) {
-      hospital.helpline = seed.helpline || seed.phone;
-      changed = true;
-    }
+    Object.entries(seed).forEach(([field, value]) => {
+      if (hospital[field] !== value) {
+        hospital[field] = value;
+        changed = true;
+      }
+    });
   });
   return changed;
 }
