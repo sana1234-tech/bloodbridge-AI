@@ -15,10 +15,12 @@ const hospitalSchema = new mongoose.Schema({
   name: { type: String, required: true },
   city: { type: String, required: true },
   area: { type: String, required: true },
+  address: { type: String },
   lat: { type: Number, required: true },
   lng: { type: Number, required: true },
   bloodInventory: { type: Map, of: Number, default: () => ({}) },
   phone: { type: String, required: true },
+  helpline: { type: String },
   type: {
     type: String,
     enum: ['hospital', 'blood_bank'],

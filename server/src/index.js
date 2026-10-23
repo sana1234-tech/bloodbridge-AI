@@ -3,13 +3,20 @@
  * The app itself lives in app.js so it can also run as a serverless
  * function (see ../api/index.js) without a listener.
  */
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 const app = require('./app');
 const db = require('./store');
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  console.log(`BloodBridge AI server running on port ${PORT}`);
-  console.log(`Donors: ${db.donors.data.length} | Hospitals: ${db.hospitals.data.length} | Demand Records: ${db.demandRecords.data.length}`);
-});
+app.initialize()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`BloodBridge AI server running on port ${PORT} (storage: ${db.getMode()})`);
+      console.log(`Donors: ${db.donors.data.length} | Hospitals: ${db.hospitals.data.length} | Demand Records: ${db.demandRecords.data.length}`);
+    });
+  })
+  .catch(err => {
+    console.error('Failed to initialize the server:', err.message);
+    process.exit(1);
+  });

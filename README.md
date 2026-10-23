@@ -22,12 +22,13 @@ In a blood emergency, families in Pakistan waste critical hours calling relative
 | **Health Screening** | Every donor answers an 8-question pre-screening at signup (fever, HIV, hepatitis, chronic conditions, medication, recent procedures, pregnancy, malaria travel). Answers become safety flags visible to staff only — never to other donors. |
 | **AI Donor Matching** | Ranks compatible donors by blood-type compatibility, distance (haversine), donation recency, and donor rating — and **hard-blocks anyone still inside the mandatory 90-day (men) / 120-day (women) resting window** per Pakistan Blood Transfusion Authority guidelines. Donors registered in the last 24h are guaranteed visible (badged "New Donor"), and results re-rank live for the staff member who posted the request. |
 | **Donor Request Feed** | Donors see all open requests and respond "I can donate" in one tap. The posting hospital sees each responder's contact details, eligibility, and health flags in *My Requests*. |
+| **Hospital Directory** | Every hospital and blood bank shows a full street address (clickable Google Maps pin), a Directions button, a tappable helpline number, and optional nearest-first sorting from the browser's location. |
 | **Demand Forecasting** | Weighted 14-day moving average + linear-regression trend + weekday seasonality predicts demand per city and blood group 7 days ahead. The model is **backtested daily against real demand** and its accuracy is displayed on the Analytics page. |
 | **Closed Data Loop** | Every request and fulfillment updates demand history, donor availability, and hospital inventory — so predictions learn from real usage, not just seed data. Surplus donated units restock the bank automatically. |
 | **Privacy by Default** | Patient names never appear in public or donor-facing views (only blood group, units, hospital, city, urgency). Staff record a private internal reference instead. Donor phone numbers are masked in the public directory and revealed only to the staff member who posted that specific request. |
 | **Replacement Donors** | Verified staff can register walk-in donors brought by a patient's family, tagged with their institution, adding them to the matched pool. |
 | **Assistant Chatbot** | Instant answers on compatibility, eligibility rules, live inventory, and how requests work — staff-only posting is explained right in the chat. |
-| **Validation & Persistence** | All API inputs are validated (blood group enums, Pakistani phone format, units 1-20, hospital existence). Locally, data persists to disk so a server restart never loses it. |
+| **Validation & Persistence** | All API inputs are validated (blood group enums, Pakistani phone format, units 1-20, hospital existence). With `MONGO_URI` set, data is stored durably in MongoDB; without it, local development falls back to a JSON file. |
 
 ## Screenshots
 
@@ -45,7 +46,7 @@ In a blood emergency, families in Pakistan waste critical hours calling relative
 
 - **Frontend:** React 19, Vite, Tailwind CSS, Recharts, React Router, Lucide icons
 - **Backend:** Node.js, Express, JWT authentication, bcrypt password hashing
-- **Storage:** In-memory store with JSON-file persistence (Mongoose-ready schemas for a future MongoDB migration)
+- **Storage:** MongoDB (when `MONGO_URI` is set) with an in-memory read cache; JSON-file fallback for local development
 - **Deployment:** Vercel (serverless production build)
 
 ## Quick Start
@@ -68,11 +69,19 @@ Copy `server/.env.example` to `server/.env` (or set these in Vercel → Project 
 |---|---|---|
 | `JWT_SECRET` | **Production: yes** | Long random string (32+ chars). The server refuses to start in production without it, so tokens can never be forged with a known default. |
 | `ADMIN_PASSWORD` | Production: recommended | Password for the seeded admin (`03000000001`). Without it, production generates a random one-time password on each cold start and logs it once. |
+| `MONGO_URI` | **Production: yes** | MongoDB Atlas connection string. When set, data survives restarts/cold starts and is shared by all instances. Without it, the app uses the local JSON snapshot (not persistent on Vercel). |
 | `ALLOWED_ORIGINS` | No | Comma-separated cross-origin frontends. Leave empty for same-origin only. |
 
 Rotating `JWT_SECRET` invalidates all existing sessions (users must log in again).
 
-- To reset demo data: stop the server, delete `server/data/bloodbridge-data.json`, restart — a fresh dataset (150 donors, 19 hospitals/blood banks, 90 days of demand history across 6 cities) is seeded automatically.
+#### Storage modes
+
+- **MongoDB** (`MONGO_URI` set): collections are created automatically on first boot. If they are empty, the demo dataset is seeded once. Reads come from an in-memory cache; each successful mutation is diffed and upserted to MongoDB before the response is sent. Recommended for Vercel/production.
+  - Create a free MongoDB Atlas cluster, add a database user, and allow your deployment to connect (for Vercel, allow `0.0.0.0/0` or use Atlas IP access lists).
+  - Put the `mongodb+srv://...` connection string in `MONGO_URI`.
+- **JSON file** (no `MONGO_URI`): data is written to `server/data/bloodbridge-data.json` on every successful mutation. Perfect for local demos, but the Vercel filesystem is ephemeral — configure MongoDB there.
+- To reset local demo data: stop the server, delete `server/data/bloodbridge-data.json`, restart — a fresh dataset (150 donors, 19 hospitals/blood banks, 90 days of demand history across 6 cities) is seeded automatically.
+- To reset a MongoDB demo database: drop the `bloodbridge` database in Atlas (or delete the six app collections), then restart.
 - To run the API test suite: `cd server && node smoke-test.js` (server must be running; uses `ADMIN_PASSWORD`, defaulting to `admin123` locally).
 
 ## API Overview
@@ -86,6 +95,8 @@ Rotating `JWT_SECRET` invalidates all existing sessions (users must log in again
 | `GET /api/verification/pending` | Pending staff list (admin only) |
 | `POST /api/verification/:id/approve` / `reject` | Approve or reject staff (admin only) |
 | `POST /api/replacement-donors` | Register a walk-in replacement donor (verified staff) |
+| `GET /api/hospitals` | Hospital/blood-bank directory with address, helpline, Google Maps + directions links |
+| `GET /api/hospitals/:id` | Single facility with the same location/contact fields |
 | `GET /api/stats` | Dashboard aggregates |
 | `GET /api/donors` | Donor directory — masked phones, eligibility status, filters |
 | `POST /api/requests` | Create emergency request (verified staff only; feeds demand history) |
@@ -102,7 +113,7 @@ Rotating `JWT_SECRET` invalidates all existing sessions (users must log in again
 
 ## Safety & Scope (honest limitations)
 
-Authentication, verification, health screening, and privacy controls are live in the product. Remaining for full production: a real database (the prototype uses in-memory storage, so serverless deployments re-seed on cold start), SMS/WhatsApp notifications, blood-unit expiry tracking (whole blood ~35-42 days, platelets ~5 days), hospital inventory integration via HL7/FHIR, and PDPA/HIPAA-style data governance. The statistical forecasting is intentionally transparent (moving average + trend) — accurate and explainable today, upgradeable to ARIMA/LSTM as real data volume grows.
+Authentication, verification, health screening, and privacy controls are live in the product. Remaining for full production: SMS/WhatsApp notifications, blood-unit expiry tracking (whole blood ~35-42 days, platelets ~5 days), hospital inventory integration via HL7/FHIR, and PDPA/HIPAA-style data governance. The statistical forecasting is intentionally transparent (moving average + trend) — accurate and explainable today, upgradeable to ARIMA/LSTM as real data volume grows.
 
 ### Security notes
 

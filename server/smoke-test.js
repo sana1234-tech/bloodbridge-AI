@@ -91,6 +91,17 @@ const SCREENING = {
   const hospitals = await j('GET', '/hospitals');
   const hospital = hospitals.data?.[0];
   check('hospitals load', hospitals.status === 200 && Boolean(hospital?._id));
+  check(
+    'all hospitals have address + helpline + map links',
+    hospitals.data?.length > 0 && hospitals.data.every(h =>
+      typeof h.address === 'string' && h.address.length > 5
+      && typeof h.helpline === 'string' && h.helpline.length >= 7
+      && h.mapUrl?.startsWith('https://www.google.com/maps/')
+      && h.directionsUrl?.startsWith('https://www.google.com/maps/dir/')
+    )
+  );
+  const hospitalDetail = hospital?._id ? await j('GET', `/hospitals/${hospital._id}`) : { status: 0, data: {} };
+  check('hospital detail returns map links', hospitalDetail.status === 200 && Boolean(hospitalDetail.data.mapUrl));
 
   const created = await j('POST', '/requests', {
     patientName: 'Test Patient', bloodGroup: 'O+', unitsNeeded: 2,

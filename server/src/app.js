@@ -8,6 +8,7 @@
 const express = require('express');
 const cors = require('cors');
 const { seedData } = require('./seeds/seedInMemory');
+const { enrichHospitals } = require('./hospitalDirectory');
 const db = require('./store');
 
 const donorRoutes = require('./routes/donors');
@@ -52,7 +53,70 @@ app.use((req, res, next) => {
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'no-referrer');
   res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
-  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  res.setHeader('Permissions-Policy', 'geolocation=(self), microphone=(), camera=()');
+  next();
+});
+
+// Initialize storage once per process (or per serverless cold start). The
+// first request waits for MongoDB/JSON data to load so routes always see data.
+let initialization = null;
+function initialize() {
+  if (!initialization) {
+    initialization = (async () => {
+      const { mode, hadData } = await db.init();
+
+      if (!hadData) {
+        console.log(`No data found (${mode}). Seeding fresh demo data...`);
+        seedData();
+        await db.persist({ force: true });
+      } else {
+        // Existing snapshots may predate the hospital address/helpline fields.
+        if (enrichHospitals(db.hospitals.data)) await db.persist();
+        console.log(`Loaded data from ${mode}.`);
+      }
+    })().catch(err => {
+      initialization = null;
+      throw err;
+    });
+  }
+  return initialization;
+}
+
+app.initialize = initialize;
+
+app.use(async (req, res, next) => {
+  try {
+    await initialize();
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Persist successful mutations before sending the response. This matters on
+// Vercel, where background work after a response can be frozen mid-flight.
+app.use((req, res, next) => {
+  if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') {
+    return next();
+  }
+
+  const sendJson = res.json.bind(res);
+  let alreadySent = false;
+
+  res.json = (body) => {
+    if (alreadySent) return res;
+    alreadySent = true;
+    // Failed validation/auth requests rarely change data; skip the disk write.
+    if (res.statusCode >= 400) return sendJson(body);
+    // Read-only POST endpoints: skip the (cheap but non-zero) diff scan.
+    if (req.path === '/api/auth/login' || req.path === '/api/chat') return sendJson(body);
+
+    db.persist()
+      .catch(err => console.error('[db] Failed to persist changes:', err.message))
+      .finally(() => sendJson(body));
+    return res;
+  };
+
   next();
 });
 
@@ -86,24 +150,21 @@ app.use((err, req, res, next) => {
   res.status(status).json({ error: status === 500 ? 'Internal server error.' : err.message });
 });
 
-// Restore persisted data if available; otherwise seed fresh demo data.
-// This keeps data intact across server restarts (important during demos).
-// On serverless hosts the filesystem is read-only, so load() finds nothing
-// and fresh demo data is seeded on each cold start instead.
-if (db.load()) {
-  console.log('Restored persisted data from disk.');
-} else {
-  console.log('No persisted data found. Seeding fresh demo data...');
-  seedData();
-}
-
-// On a long-running server (local dev / demo machine), snapshot data to disk
-// every few seconds and on shutdown. On serverless hosts (VERCEL is set)
-// the filesystem is read-only, so skip it — writes would only fail there.
+// Persist on shutdown for long-running local/demo servers. Serverless hosts
+// are handled by the persistence middleware above.
 if (!process.env.VERCEL) {
-  setInterval(() => db.persist(), 5000).unref();
-  process.on('SIGINT', () => { db.persist(); process.exit(0); });
-  process.on('SIGTERM', () => { db.persist(); process.exit(0); });
+  const shutdown = async (signal) => {
+    console.log(`[server] ${signal} received, flushing data...`);
+    try {
+      await db.persist();
+    } catch (err) {
+      console.error('[db] Final persist failed:', err.message);
+    } finally {
+      process.exit(0);
+    }
+  };
+  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
 }
 
 module.exports = app;

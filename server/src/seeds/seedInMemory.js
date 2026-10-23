@@ -1,6 +1,7 @@
 const db = require('../store');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const { HOSPITALS_DATA } = require('../hospitalDirectory');
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
@@ -21,28 +22,6 @@ const CITIES = {
 
 const FIRST_NAMES = ['Ahmad', 'Ali', 'Hassan', 'Hussain', 'Usman', 'Bilal', 'Kamran', 'Faisal', 'Saad', 'Tariq', 'Imran', 'Naveed', 'Asad', 'Waqar', 'Junaid', 'Omar', 'Zain', 'Hamza', 'Saif', 'Nasir', 'Fahad', 'Danish', 'Adnan', 'Kashif', 'Fatima', 'Ayesha', 'Sara', 'Hira', 'Maryam', 'Zara', 'Nadia', 'Sana', 'Amna', 'Huma', 'Bushra', 'Rabia', 'Nida', 'Farah', 'Saima', 'Uzma', 'Raza', 'Shahid', 'Aslam', 'Rehan', 'Sohail', 'Irfan', 'Zahid', 'Arif', 'Nadeem', 'Tanveer', 'Yasir', 'Sajid', 'Farhan', 'Adeel', 'Shoaib', 'Talha'];
 const LAST_NAMES = ['Khan', 'Ahmed', 'Ali', 'Hussain', 'Malik', 'Butt', 'Chaudhry', 'Iqbal', 'Raza', 'Siddiqui', 'Qureshi', 'Mirza', 'Sheikh', 'Ansari', 'Saeed', 'Akram', 'Rehman', 'Ashraf', 'Gill', 'Javed', 'Aslam', 'Tanveer', 'Shah', 'Yousaf'];
-
-const HOSPITALS_DATA = [
-  { name: 'Jinnah Hospital Lahore', city: 'Lahore', area: 'Johar Town', lat: 31.4828, lng: 74.2968, phone: '042-99231040', type: 'hospital' },
-  { name: 'Shaukat Khanum Memorial Hospital', city: 'Lahore', area: 'Johar Town', lat: 31.4788, lng: 74.2755, phone: '042-35905000', type: 'hospital' },
-  { name: 'Mayo Hospital Lahore', city: 'Lahore', area: 'Mayo Hospital Road', lat: 31.5619, lng: 74.3124, phone: '042-99210202', type: 'hospital' },
-  { name: 'Alkhidmat Blood Bank Lahore', city: 'Lahore', area: 'Gulberg', lat: 31.5163, lng: 74.3457, phone: '042-35762183', type: 'blood_bank' },
-  { name: 'Sundas Blood Bank Lahore', city: 'Lahore', area: 'Model Town', lat: 31.5065, lng: 74.3264, phone: '042-35835221', type: 'blood_bank' },
-  { name: 'Jinnah Postgraduate Medical Centre', city: 'Karachi', area: 'Saddar', lat: 24.8571, lng: 67.0245, phone: '021-99201300', type: 'hospital' },
-  { name: 'Aga Khan University Hospital', city: 'Karachi', area: 'Stadium Road', lat: 24.8907, lng: 67.0755, phone: '021-111-911-911', type: 'hospital' },
-  { name: 'Liaquat National Hospital', city: 'Karachi', area: 'Stadium Road', lat: 24.8943, lng: 67.0787, phone: '021-99258000', type: 'hospital' },
-  { name: 'Fatimid Foundation Blood Bank Karachi', city: 'Karachi', area: 'Gulshan-e-Iqbal', lat: 24.9167, lng: 67.0950, phone: '021-34980824', type: 'blood_bank' },
-  { name: 'Indus Hospital Blood Bank', city: 'Karachi', area: 'Korangi', lat: 24.8394, lng: 67.1910, phone: '021-111-463-874', type: 'blood_bank' },
-  { name: 'Pakistan Institute of Medical Sciences (PIMS)', city: 'Islamabad', area: 'G-8', lat: 33.7260, lng: 73.0680, phone: '051-9261161', type: 'hospital' },
-  { name: 'Shifa International Hospital', city: 'Islamabad', area: 'H-8/4', lat: 33.7089, lng: 73.0318, phone: '051-8464646', type: 'hospital' },
-  { name: 'Alkhidmat Blood Bank Islamabad', city: 'Islamabad', area: 'G-11', lat: 33.7084, lng: 73.0084, phone: '051-2103214', type: 'blood_bank' },
-  { name: 'Holy Family Hospital', city: 'Rawalpindi', area: 'Satellite Town', lat: 33.6082, lng: 73.0578, phone: '051-9290300', type: 'hospital' },
-  { name: 'Armed Forces Institute of Transfusion', city: 'Rawalpindi', area: 'Cantt', lat: 33.5938, lng: 73.0562, phone: '051-5521874', type: 'blood_bank' },
-  { name: 'Allied Hospital Faisalabad', city: 'Faisalabad', area: 'Peoples Colony', lat: 31.4186, lng: 73.0808, phone: '041-9220090', type: 'hospital' },
-  { name: 'Faisalabad Institute of Cardiology', city: 'Faisalabad', area: 'Jinnah Colony', lat: 31.4142, lng: 73.0992, phone: '041-9330017', type: 'hospital' },
-  { name: 'Nishtar Hospital Multan', city: 'Multan', area: 'Nishtar Road', lat: 30.1848, lng: 71.4780, phone: '061-9200143', type: 'hospital' },
-  { name: 'Alkhidmat Blood Bank Multan', city: 'Multan', area: 'Gulgasht Colony', lat: 30.1741, lng: 71.5199, phone: '061-4542961', type: 'blood_bank' },
-];
 
 function rand(min, max) { return Math.random() * (max - min) + min; }
 function randInt(min, max) { return Math.floor(rand(min, max + 1)); }
