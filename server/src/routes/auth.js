@@ -9,14 +9,28 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const db = require('../store');
 const { signToken, authenticateToken } = require('../middleware/auth');
-const { validateStaffSignup, validateDonorSignup } = require('../utils/validation');
+const { validateStaffSignup, validateDonorSignup, normalizePhone } = require('../utils/validation');
 const { validateHealthScreening } = require('../services/healthScreening');
 const { cityCoords } = require('../utils/geo');
+const { createRateLimiter } = require('../middleware/rateLimit');
 
 const router = express.Router();
 
+// Brute-force protection. Successful logins still consume quota, but the
+// limits are generous enough for normal use.
+const loginLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: 'Too many login attempts. Please wait 15 minutes and try again.',
+});
+const signupLimiter = createRateLimiter({
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  message: 'Too many accounts created from this network. Please try again later.',
+});
+
 // ── Staff signup ─────────────────────────────────────────────────────────────
-router.post('/signup/staff', async (req, res) => {
+router.post('/signup/staff', signupLimiter, async (req, res) => {
   try {
     const { errors, sanitized } = validateStaffSignup(req.body || {});
     if (errors.length) return res.status(400).json({ error: errors.join(' ') });
@@ -51,7 +65,7 @@ router.post('/signup/staff', async (req, res) => {
 });
 
 // ── Donor signup ─────────────────────────────────────────────────────────────
-router.post('/signup/donor', async (req, res) => {
+router.post('/signup/donor', signupLimiter, async (req, res) => {
   try {
     const { errors, sanitized } = validateDonorSignup(req.body || {});
     if (errors.length) return res.status(400).json({ error: errors.join(' ') });
@@ -112,12 +126,14 @@ router.post('/signup/donor', async (req, res) => {
 });
 
 // ── Login ────────────────────────────────────────────────────────────────────
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   try {
-    const { phone, role, password } = req.body || {};
+    const { phone, role } = req.body || {};
+    const password = typeof req.body?.password === 'string' ? req.body.password : '';
     if (!phone || !password) return res.status(400).json({ error: 'Phone and password are required.' });
 
-    const user = db.users.data.find(u => u.phone === phone && (!role || u.role === role));
+    const normalizedPhone = normalizePhone(phone);
+    const user = db.users.data.find(u => u.phone === normalizedPhone && (!role || u.role === role));
     if (!user) return res.status(401).json({ error: 'Invalid credentials.' });
 
     const valid = await bcrypt.compare(password, user.password);

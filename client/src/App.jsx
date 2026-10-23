@@ -13,6 +13,7 @@ import SignupDonor from './pages/SignupDonor';
 import VerificationPanel from './pages/VerificationPanel';
 import MyRequests from './pages/MyRequests';
 import ReplacementDonor from './pages/ReplacementDonor';
+import BloodRequests from './pages/BloodRequests';
 
 function ProtectedRoute({ children, staffOnly = false }) {
   const { user, isVerifiedStaff, loading } = useAuth();
@@ -35,6 +36,7 @@ function App() {
           {/* Main app with layout */}
           <Route element={<Layout />}>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/requests" element={<BloodRequests />} />
             <Route path="/donors" element={<Donors />} />
             <Route path="/hospitals" element={<Hospitals />} />
             <Route path="/analytics" element={<Analytics />} />

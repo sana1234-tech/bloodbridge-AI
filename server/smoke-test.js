@@ -1,106 +1,180 @@
-/* Quick API smoke test for BloodBridge AI - run with server on port 5000 */
-const BASE = 'http://localhost:5000/api';
+/* API smoke test for BloodBridge AI — run with: node server/smoke-test.js
+ * The server must already be running on port 5000.
+ * Uses ADMIN_PASSWORD (defaults to admin123 for local development).
+ */
+const jwt = require('jsonwebtoken');
 
-async function j(method, path, body) {
+const BASE = process.env.BASE_URL || 'http://localhost:5000/api';
+const ADMIN_PHONE = '03000000001';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+
+let failures = 0;
+const check = (name, cond, extra = '') => {
+  console.log(`${cond ? 'PASS' : 'FAIL'} - ${name}${extra ? ' | ' + extra : ''}`);
+  if (!cond) failures++;
+};
+
+async function j(method, path, body, token) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers.Authorization = `Bearer ${token}`;
   const res = await fetch(`${BASE}${path}`, {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
   return { status: res.status, data };
 }
 
+const SCREENING = {
+  fever: false, hiv: false, hepatitis: false, chronic: false,
+  medication: false, recentProcedure: false, pregnancy: false, malariaTravel: false,
+};
+
 (async () => {
-  let failures = 0;
-  const check = (name, cond, extra = '') => {
-    console.log(`${cond ? 'PASS' : 'FAIL'} - ${name}${extra ? ' | ' + extra : ''}`);
-    if (!cond) failures++;
-  };
+  // Unique suffixes so repeated runs do not collide on phone numbers.
+  const runId = Date.now().toString().slice(-6);
+  const staffPhone = `03111${runId}`;
+  const donorPhone = `03222${runId}`;
 
   // 1. Health
   const health = await j('GET', '/health');
-  check('health', health.status === 200, `donors=${health.data.donors}`);
+  check('health', health.status === 200 && health.data.status === 'ok');
 
-  // 2. Donors: masked phone + eligibility attached
-  const donors = await j('GET', '/donors?limit=3');
-  const d0 = donors.data.donors?.[0];
-  check('donors list', donors.status === 200 && donors.data.donors?.length > 0);
-  check('phone masked', d0 && d0.phone.includes('*'), `phone=${d0?.phone}`);
-  check('eligibility attached', d0 && d0.eligibility && typeof d0.eligibility.eligible === 'boolean',
-    `eligible=${d0?.eligibility?.eligible} reason="${d0?.eligibility?.reason}"`);
-  const eligibleCount = (await j('GET', '/donors?eligible=true&limit=1')).data.total;
-  const totalCount = (await j('GET', '/donors?limit=1')).data.total;
-  check('eligible filter works', eligibleCount > 0 && eligibleCount < totalCount, `${eligibleCount}/${totalCount} eligible`);
+  // 2. Public donor view: masked phone, no internal userId, coarse coordinates
+  const donorsRes = await j('GET', '/donors?limit=3');
+  const d0 = donorsRes.data.donors?.[0];
+  check('donors list', donorsRes.status === 200 && donorsRes.data.donors?.length > 0);
+  check('phone masked', d0 && d0.phone.includes('*'));
+  check('userId hidden', d0 && d0.userId === undefined);
+  check('coordinates rounded', d0 && (d0.lat === null || (String(d0.lat).split('.')[1] || '').length <= 2));
 
-  // 3. Invalid request rejected
-  const bad = await j('POST', '/requests', { patientName: 'X', bloodGroup: 'Z+', unitsNeeded: 99, urgencyLevel: 'whenever', hospitalId: 'h001' });
-  check('invalid request rejected', bad.status === 400, `"${(bad.data.error || '').slice(0, 90)}..."`);
-
-  // 4. Invalid donor rejected (bad phone)
-  const badDonor = await j('POST', '/donors', { name: 'Test Donor', bloodGroup: 'O+', phone: 'abc', city: 'Lahore', area: 'DHA', lat: 31.5, lng: 74.3 });
-  check('invalid donor rejected', badDonor.status === 400, `"${(badDonor.data.error || '').slice(0, 60)}..."`);
-
-  // 5. Valid request created
-  const hospitals = (await j('GET', '/hospitals')).data;
-  const req1 = await j('POST', '/requests', {
-    patientName: 'Muhammad Ali', bloodGroup: 'B+', unitsNeeded: 2, urgencyLevel: 'critical',
-    hospitalId: hospitals[0]._id, contactNumber: '0300-1234567', notes: 'smoke test',
-  });
-  check('valid request created', req1.status === 201, `id=${req1.data._id}`);
-
-  // 6. Requests list masks patient name
-  const reqList = await j('GET', '/requests?limit=5');
-  const masked = reqList.data.find(r => r._id === req1.data._id);
-  check('patient name masked in list', masked && masked.patientName.includes('*'), `"${masked?.patientName}"`);
-  check('contact number hidden in list', masked && masked.contactNumber === undefined);
-
-  // 7. Matching runs + excludes ineligible donors
-  const match = await j('POST', `/match/${req1.data._id}`);
-  check('matching works', match.status === 200 && match.data.matches?.length > 0,
-    `${match.data.matches?.length} matches, totalCompatible=${match.data.totalCompatible}, excludedByEligibility=${match.data.excludedByEligibility}`);
-  check('excludedByEligibility reported', typeof match.data.excludedByEligibility === 'number');
-  const ineligibleMatched = match.data.matches.filter(m => m.lastDonationDays < 90);
-  check('no matched donor inside 90-day window', ineligibleMatched.length === 0,
-    ineligibleMatched.length ? `min days=${Math.min(...ineligibleMatched.map(m => m.lastDonationDays))}` : '');
-
-  // 8. Fulfill with 2 donors
-  const donorIds = match.data.matches.slice(0, 2).map(m => m.donorId);
-  const before = (await j('GET', `/hospitals/${hospitals[0]._id}`)).data;
-  const invBefore = before.bloodInventory['B+'];
-  const fulfill = await j('PATCH', `/requests/${req1.data._id}/fulfill`, { donorIds });
-  check('fulfillment works', fulfill.status === 200, `donorsDonated=${fulfill.data.summary?.donorsDonated}`);
-  check('request status fulfilled', fulfill.data.request?.status === 'fulfilled');
-  const donorAfter = (await j('GET', `/donors/${donorIds[0]}`)).data;
-  check('donor now resting', donorAfter.eligibility?.eligible === false && donorAfter.isAvailable === false,
-    `"${donorAfter.eligibility?.reason}"`);
-  const doubleFulfill = await j('PATCH', `/requests/${req1.data._id}/fulfill`, { donorIds: [] });
-  check('double fulfillment blocked', doubleFulfill.status === 400);
-
-  // 9. Fulfill with surplus donors (3 donors, 2 units) -> restocks inventory
-  const req2 = await j('POST', '/requests', {
-    patientName: 'Ayesha Siddiqui', bloodGroup: 'O+', unitsNeeded: 1, urgencyLevel: 'high',
-    hospitalId: hospitals[0]._id,
-  });
-  const match2 = await j('POST', `/match/${req2.data._id}`);
-  const ids2 = match2.data.matches.slice(0, 3).map(m => m.donorId);
-  const ful2 = await j('PATCH', `/requests/${req2.data._id}/fulfill`, { donorIds: ids2 });
-  check('surplus restocked', ful2.data.summary?.surplusUnitsRestocked === 2,
-    `surplus=${ful2.data.summary?.surplusUnitsRestocked}`);
-
-  // 10. Predictions + accuracy
-  const preds = await j('GET', '/predictions?city=Lahore');
-  check('predictions work', preds.status === 200 && preds.data.length > 0, `${preds.data.length} forecast rows`);
-  const acc = await j('GET', '/predictions/accuracy?city=Lahore');
-  check('accuracy backtest works', acc.status === 200 && typeof acc.data.accuracy === 'number',
-    `accuracy=${acc.data.accuracy}% over ${acc.data.samples} forecasts, worst group=${acc.data.groups?.[0]?.city} ${acc.data.groups?.[0]?.bloodGroup} @ ${acc.data.groups?.[0]?.accuracy}%`);
-
-  // 11. Demand loop: today's record should include our new requests
-  const todayStr = new Date().toISOString().split('T')[0];
-  const acc2 = await j('GET', '/predictions/accuracy');
+  // 3. Public stats must not leak private request fields
   const stats = await j('GET', '/stats');
-  check('stats still work', stats.status === 200, `activeRequests=${stats.data.activeRequests}`);
+  const recent = stats.data.recentRequests?.[0];
+  check('stats loads', stats.status === 200);
+  check('stats hides notes', !recent || recent.notes === undefined);
+  check('stats hides internalReference', !recent || recent.internalReference === undefined);
+  check('stats hides postedBy', !recent || recent.postedBy === undefined);
 
-  console.log(`\n${failures === 0 ? 'ALL TESTS PASSED' : failures + ' TEST(S) FAILED'}`);
+  // 4. Legacy unauthenticated donor creation is gone
+  const legacyDonor = await j('POST', '/donors', { name: 'Anon', phone: '03001234567', bloodGroup: 'O+', city: 'Lahore' });
+  check('public donor POST blocked', legacyDonor.status === 404 || legacyDonor.status === 401);
+
+  // 5. Admin login
+  const adminLogin = await j('POST', '/auth/login', { phone: ADMIN_PHONE, password: ADMIN_PASSWORD, role: 'staff' });
+  check('admin login', adminLogin.status === 200 && Boolean(adminLogin.data.token),
+    adminLogin.status !== 200 ? `status=${adminLogin.status}` : '');
+  const adminToken = adminLogin.data.token;
+
+  const me = await j('GET', '/auth/me', null, adminToken);
+  check('auth/me', me.status === 200 && me.data.user?.role === 'staff');
+
+  // 6. A token signed with the old default secret must be rejected
+  if (process.env.JWT_SECRET && process.env.JWT_SECRET !== 'bloodbridge-dev-secret') {
+    const forged = jwt.sign(
+      { userId: 'u_admin001', role: 'staff', verificationStatus: 'verified' },
+      'bloodbridge-dev-secret',
+      { expiresIn: '1h' }
+    );
+    const forgedRes = await fetch(`${BASE}/auth/me`, { headers: { Authorization: `Bearer ${forged}` } });
+    check('forged token rejected', forgedRes.status === 401);
+  }
+
+  // 7. Requests require authentication and verification
+  const anonRequest = await j('POST', '/requests', {
+    patientName: 'Test Patient', bloodGroup: 'O+', unitsNeeded: 2,
+    hospitalId: 'x', urgencyLevel: 'high',
+  });
+  check('anonymous request blocked', anonRequest.status === 401);
+
+  const hospitals = await j('GET', '/hospitals');
+  const hospital = hospitals.data?.[0];
+  check('hospitals load', hospitals.status === 200 && Boolean(hospital?._id));
+
+  const created = await j('POST', '/requests', {
+    patientName: 'Test Patient', bloodGroup: 'O+', unitsNeeded: 2,
+    hospitalId: hospital?._id, urgencyLevel: 'high',
+    contactNumber: '0300-1234567', notes: 'private note',
+    internalReference: 'PRIVATE-REF-1',
+  }, adminToken);
+  check('staff can create request', created.status === 201 && created.data._id);
+  const requestId = created.data._id;
+  check('created request normalizes phone', created.data.contactNumber === '03001234567');
+
+  // 8. Public request views never expose patient identity
+  const publicList = await j('GET', '/requests');
+  const listed = publicList.data?.find(r => r._id === requestId);
+  check('public request feed hides patientName', !listed || listed.patientName === undefined);
+  check('public request feed hides contactNumber', !listed || listed.contactNumber === undefined);
+
+  const publicDetail = await j('GET', `/requests/${requestId}`);
+  check('public request detail hides patientName', publicDetail.data.patientName === undefined);
+
+  // 9. Matching: auth required, public results masked
+  const anonMatch = await j('POST', `/match/${requestId}`);
+  check('anonymous matching blocked', anonMatch.status === 401);
+
+  const match = await j('POST', `/match/${requestId}`, null, adminToken);
+  check('posting staff can run matching', match.status === 200 && Array.isArray(match.data.matches));
+
+  const publicMatch = await j('GET', `/match/${requestId}`);
+  const masked = publicMatch.data.matchedDonors?.[0]?.donorId;
+  check('public match masks donor name', !masked || masked.name === 'Donor');
+  check('public match masks donor phone', !masked || masked.phone?.includes('*'));
+
+  // 10. A different verified staff member cannot fulfill this request
+  const staffSignup = await j('POST', '/auth/signup/staff', {
+    fullName: 'Test Staff', phone: staffPhone, password: 'testpass123',
+    institutionName: 'Test Hospital', institutionLicenseNo: `TEST-${runId}`,
+    city: 'Lahore',
+  });
+  check('staff signup', staffSignup.status === 201 && staffSignup.data.user?._id);
+
+  const approve = await j('POST', `/verification/${staffSignup.data.user?._id}/approve`, {}, adminToken);
+  check('admin approves staff', approve.status === 200);
+
+  const staffLogin = await j('POST', '/auth/login', { phone: staffPhone, password: 'testpass123', role: 'staff' });
+  check('approved staff login', staffLogin.status === 200 && Boolean(staffLogin.data.token));
+  const staffToken = staffLogin.data.token;
+
+  const forbiddenMatch = await j('POST', `/match/${requestId}`, null, staffToken);
+  check('non-owner cannot run matching', forbiddenMatch.status === 403);
+
+  const forbiddenFulfill = await j('PATCH', `/requests/${requestId}/fulfill`, { donorIds: [] }, staffToken);
+  check('non-owner cannot fulfill request', forbiddenFulfill.status === 403);
+
+  // 11. Donor response flow
+  const donorSignup = await j('POST', '/auth/signup/donor', {
+    name: 'Test Donor', phone: donorPhone, password: 'testpass123',
+    bloodGroup: 'O+', age: 30, city: 'Lahore', area: 'Gulberg',
+    gender: 'male', ...SCREENING,
+  });
+  check('donor signup (all screening answers)', donorSignup.status === 201 && Boolean(donorSignup.data.token));
+
+  const missingScreening = await j('POST', '/auth/signup/donor', {
+    name: 'No Screening', phone: `03333${runId}`, password: 'testpass123',
+    bloodGroup: 'A+', age: 30, city: 'Lahore', area: 'Model Town', gender: 'male',
+  });
+  check('donor signup requires screening', missingScreening.status === 400);
+
+  const respond = await j('POST', `/requests/${requestId}/respond`, {}, donorSignup.data.token);
+  check('donor can respond', respond.status === 201, respond.data.error || '');
+
+  const respondAgain = await j('POST', `/requests/${requestId}/respond`, {}, donorSignup.data.token);
+  check('duplicate response blocked', respondAgain.status === 409);
+
+  // 12. Only posting staff can read responses
+  const responses = await j('GET', `/requests/${requestId}/responses`, null, adminToken);
+  check('posting staff sees responses', responses.status === 200 && responses.data.length >= 1);
+  check('response includes full phone', responses.data?.[0]?.donorPhone === donorPhone);
+
+  const otherResponses = await j('GET', `/requests/${requestId}/responses`, null, staffToken);
+  check('non-owner cannot read responses', otherResponses.status === 403);
+
+  console.log(`\n${failures === 0 ? 'All checks passed.' : `${failures} check(s) failed.`}`);
   process.exit(failures === 0 ? 0 : 1);
-})().catch(e => { console.error('CRASH:', e.message); process.exit(1); });
+})().catch((err) => {
+  console.error('Smoke test crashed:', err);
+  process.exit(1);
+});

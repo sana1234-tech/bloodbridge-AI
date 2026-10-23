@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../store');
 const { validateBloodRequest, maskName } = require('../utils/validation');
-const { authenticateToken, optionalAuth, requireVerifiedStaff, requireAuth } = require('../middleware/auth');
+const { authenticateToken, optionalAuth, requireVerifiedStaff } = require('../middleware/auth');
 const { computeHealthFlags } = require('../services/healthScreening');
 const { donorEligibility } = require('../services/eligibility');
 
@@ -67,7 +67,8 @@ router.get('/', optionalAuth, async (req, res) => {
     if (status) results = results.filter(r => r.status === status);
     if (bloodGroup) results = results.filter(r => r.bloodGroup === bloodGroup);
     results.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    const paginated = results.slice(0, parseInt(limit));
+    const limitNum = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+    const paginated = results.slice(0, limitNum);
 
     const enriched = paginated.map(r => {
       const view = publicRequestView(r);
@@ -196,6 +197,7 @@ router.post('/:id/respond', authenticateToken, (req, res) => {
     const request = db.bloodRequests.data.find(r => r._id === req.params.id);
     if (!request) return res.status(404).json({ error: 'Request not found.' });
     if (request.status === 'fulfilled') return res.status(400).json({ error: 'This request is already fulfilled.' });
+    if (request.status === 'cancelled') return res.status(400).json({ error: 'This request was cancelled.' });
 
     // Find the donor linked to this user
     const donor = db.donors.data.find(d => d.userId === req.user.userId);
@@ -268,6 +270,11 @@ router.patch('/:id/fulfill', authenticateToken, requireVerifiedStaff, async (req
   try {
     const request = db.bloodRequests.data.find(r => r._id === req.params.id);
     if (!request) return res.status(404).json({ error: 'Request not found' });
+    // Ownership check: a different hospital must not be able to close this
+    // request or mark its matched donors as having donated.
+    if (request.postedBy !== req.user.userId) {
+      return res.status(403).json({ error: 'Only the staff member who posted this request can fulfill it.' });
+    }
     if (request.status === 'fulfilled') return res.status(400).json({ error: 'Request is already fulfilled.' });
     if (request.status === 'cancelled') return res.status(400).json({ error: 'Cancelled requests cannot be fulfilled.' });
 

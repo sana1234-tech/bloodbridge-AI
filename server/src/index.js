@@ -3,6 +3,7 @@
  * The app itself lives in app.js so it can also run as a serverless
  * function (see ../api/index.js) without a listener.
  */
+require('dotenv').config();
 const app = require('./app');
 const db = require('./store');
 

@@ -33,6 +33,7 @@ export function AuthProvider({ children }) {
     const result = await api.login(phone, password, role);
     localStorage.setItem('bb_token', result.token);
     if (result.donorId) localStorage.setItem('bb_donorId', result.donorId);
+    else localStorage.removeItem('bb_donorId');
     api.setToken(result.token);
     setUser(result.user);
     setToken(result.token);
@@ -43,6 +44,7 @@ export function AuthProvider({ children }) {
   const signupStaff = useCallback(async (data) => {
     const result = await api.signupStaff(data);
     localStorage.setItem('bb_token', result.token);
+    localStorage.removeItem('bb_donorId');
     api.setToken(result.token);
     setUser(result.user);
     setToken(result.token);

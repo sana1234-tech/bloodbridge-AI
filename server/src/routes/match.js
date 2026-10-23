@@ -1,18 +1,25 @@
 const express = require('express');
 const router = express.Router();
-const { findMatchingDonors } = require('../services/donorMatching');
+const db = require('../store');
+const { findMatchingDonors, COMPATIBILITY } = require('../services/donorMatching');
 const { authenticateToken, optionalAuth, requireVerifiedStaff } = require('../middleware/auth');
 const { maskPhone } = require('../utils/validation');
 const { computeHealthFlags } = require('../services/healthScreening');
 const { donorEligibility } = require('../services/eligibility');
 
-// POST /api/match/:requestId — only verified staff can run AI matching
+// POST /api/match/:requestId — only the staff member who posted the request
+// can (re)run matching and see full donor contact details.
 router.post('/:requestId', authenticateToken, requireVerifiedStaff, async (req, res) => {
   try {
+    const request = db.bloodRequests.data.find(r => r._id === req.params.requestId);
+    if (!request) return res.status(404).json({ error: 'Request not found.' });
+    if (request.postedBy !== req.user.userId) {
+      return res.status(403).json({ error: 'Only the staff member who posted this request can run matching.' });
+    }
+
     const result = await findMatchingDonors(req.params.requestId);
     // Add health flags for staff view
     result.matches = (result.matches || []).map(m => {
-      const db = require('../store');
       const donor = db.donors.data.find(d => d._id === m.donorId);
       return {
         ...m,
@@ -29,18 +36,29 @@ router.post('/:requestId', authenticateToken, requireVerifiedStaff, async (req, 
 // GET /api/match/:requestId — privacy-aware match results
 router.get('/:requestId', optionalAuth, async (req, res) => {
   try {
-    const db = require('../store');
     const request = db.bloodRequests.data.find(r => r._id === req.params.requestId);
     if (!request) return res.status(404).json({ error: 'Request not found' });
 
-    // Re-run matching live (unless fulfilled) so newly registered donors
-    // appear immediately — not only in results frozen at creation time.
-    if (request.status !== 'fulfilled') {
+    const isPostingStaff = req.user && req.user.userId === request.postedBy;
+
+    // Only the posting staff may mutate data through a GET. Anonymous visitors
+    // and other hospitals get the stored, privacy-masked results.
+    if (isPostingStaff && request.status !== 'fulfilled') {
       try { findMatchingDonors(req.params.requestId); } catch { /* keep stored results on failure */ }
     }
 
     const hospital = db.hospitals.data.find(h => h._id === request.hospitalId);
-    const isPostingStaff = req.user && req.user.userId === request.postedBy;
+
+    // Read-only compatibility stats (no mutation) so public views correctly
+    // report how many donors exist and how many the safety filter blocked.
+    const compatibleGroups = Object.entries(COMPATIBILITY)
+      .filter(([, recipients]) => recipients.includes(request.bloodGroup))
+      .map(([group]) => group);
+    const compatibleDonors = db.donors.data.filter(
+      d => compatibleGroups.includes(d.bloodGroup) && d.isAvailable
+    );
+    const totalCompatible = compatibleDonors.filter(d => donorEligibility(d).eligible).length;
+    const excludedByEligibility = compatibleDonors.length - totalCompatible;
 
     const enrichedDonors = (request.matchedDonors || []).map(md => {
       const donor = db.donors.data.find(d => d._id === md.donorId);
@@ -87,6 +105,8 @@ router.get('/:requestId', optionalAuth, async (req, res) => {
         hospitalArea: hospital?.area || 'Unknown',
       },
       matchedDonors: enrichedDonors,
+      totalCompatible,
+      excludedByEligibility,
       status: request.status,
     });
   } catch (err) {

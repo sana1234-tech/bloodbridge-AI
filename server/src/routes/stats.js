@@ -39,11 +39,16 @@ router.get('/', async (req, res) => {
       .slice(0, 5)
       .map(r => {
         const hospital = hospitals.find(h => h._id === r.hospitalId);
+        // Explicit allow-list: notes, internalReference, postedBy and contact
+        // details must never reach the public dashboard.
         return {
-          ...r,
-          // Patient identity is masked on public dashboard views
+          _id: r._id,
           patientName: maskName(r.patientName),
-          contactNumber: undefined,
+          bloodGroup: r.bloodGroup,
+          unitsNeeded: r.unitsNeeded,
+          urgencyLevel: r.urgencyLevel,
+          status: r.status,
+          createdAt: r.createdAt,
           hospitalId: hospital ? { _id: hospital._id, name: hospital.name, city: hospital.city } : null,
         };
       });

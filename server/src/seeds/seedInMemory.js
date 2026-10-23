@@ -1,7 +1,14 @@
 const db = require('../store');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+
+// Synthetic demo donors are treated as having completed pre-screening.
+const CLEAN_SCREENING = {
+  fever: false, hiv: false, hepatitis: false, chronic: false,
+  medication: false, recentProcedure: false, pregnancy: false, malariaTravel: false,
+};
 
 const CITIES = {
   Lahore: { center: [31.5204, 74.3587], areas: ['Gulberg', 'DHA', 'Model Town', 'Johar Town', 'Garden Town', 'Cantt', 'Wapda Town', 'Bahria Town'] },
@@ -73,6 +80,7 @@ function seedData() {
       bloodGroup: pick(BLOOD_GROUPS),
       phone: randomPhone(),
       gender: Math.random() > 0.5 ? 'male' : 'female',
+      age: randInt(18, 60),
       city,
       area,
       lat: randomCoord(cityData.center[0]),
@@ -81,6 +89,8 @@ function seedData() {
       isAvailable: Math.random() > 0.2,
       rating: parseFloat(rand(3.0, 5.0).toFixed(1)),
       totalDonations: randInt(0, 15),
+      healthScreening: { ...CLEAN_SCREENING },
+      source: 'seed',
       createdAt: registeredAt,
     });
   }
@@ -125,7 +135,24 @@ function seedData() {
   // Seed a default admin (verified hospital staff) account so the system has
   // someone who can approve other staff from the start.
   if (db.users.data.length === 0) {
-    const hashedPassword = bcrypt.hashSync('admin123', 10);
+    const isProduction = process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL);
+    const configuredPassword = process.env.ADMIN_PASSWORD;
+
+    let adminPassword = configuredPassword;
+    if (!adminPassword) {
+      if (isProduction) {
+        // Never ship a known default password in production. A random password
+        // is generated for this cold start; set ADMIN_PASSWORD to pin it.
+        adminPassword = crypto.randomBytes(18).toString('base64url');
+        console.warn('[security] ADMIN_PASSWORD is not set.');
+        console.warn(`[security] Generated one-time admin password for 03000000001: ${adminPassword}`);
+        console.warn('[security] Set ADMIN_PASSWORD in your environment to control this.');
+      } else {
+        adminPassword = 'admin123';
+      }
+    }
+
+    const hashedPassword = bcrypt.hashSync(adminPassword, 10);
     db.users.data.push({
       _id: 'u_admin001',
       role: 'staff',
@@ -139,7 +166,7 @@ function seedData() {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    console.log('Seeded admin account: phone=03000000001 password=admin123');
+    console.log(`Seeded admin account: phone=03000000001${configuredPassword ? ' (password from ADMIN_PASSWORD)' : ''}`);
   }
 }
 

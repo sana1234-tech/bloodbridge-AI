@@ -3,7 +3,8 @@
 BloodBridge AI coordinates emergency blood requests between hospitals, blood banks, and voluntary donors across Pakistan. It combines **verified access control**, **safe donor matching**, **health screening**, **data-driven demand forecasting**, and an **assistant chatbot** in a single dashboard.
 
 **Live deployment:** https://bloodbridge-ai-two.vercel.app
-**Demo admin:** phone `03000000001` · password `admin123`
+**Local demo admin (development only):** phone `03000000001` · password `admin123`
+In production, set `ADMIN_PASSWORD` (see **Environment variables** below) — a random password is generated otherwise.
 
 ## Problem
 
@@ -19,7 +20,8 @@ In a blood emergency, families in Pakistan waste critical hours calling relative
 |---|---|
 | **Verified Access Control** | Two JWT-authenticated account types (bcrypt-hashed passwords): **Hospital/Blood-Bank Staff** and **Donors**. Staff register with their institution + license number and start *pending*; a verified admin approves or rejects them in the Verification Panel. Only approved staff can post requests. |
 | **Health Screening** | Every donor answers an 8-question pre-screening at signup (fever, HIV, hepatitis, chronic conditions, medication, recent procedures, pregnancy, malaria travel). Answers become safety flags visible to staff only — never to other donors. |
-| **AI Donor Matching** | Ranks compatible donors by blood-type compatibility, distance (haversine), donation recency, and donor rating — and **hard-blocks anyone still inside the mandatory 90-day (men) / 120-day (women) resting window** per Pakistan Blood Transfusion Authority guidelines. Donors registered in the last 24h are guaranteed visible (badged "New Donor"), and results re-rank live on every view. |
+| **AI Donor Matching** | Ranks compatible donors by blood-type compatibility, distance (haversine), donation recency, and donor rating — and **hard-blocks anyone still inside the mandatory 90-day (men) / 120-day (women) resting window** per Pakistan Blood Transfusion Authority guidelines. Donors registered in the last 24h are guaranteed visible (badged "New Donor"), and results re-rank live for the staff member who posted the request. |
+| **Donor Request Feed** | Donors see all open requests and respond "I can donate" in one tap. The posting hospital sees each responder's contact details, eligibility, and health flags in *My Requests*. |
 | **Demand Forecasting** | Weighted 14-day moving average + linear-regression trend + weekday seasonality predicts demand per city and blood group 7 days ahead. The model is **backtested daily against real demand** and its accuracy is displayed on the Analytics page. |
 | **Closed Data Loop** | Every request and fulfillment updates demand history, donor availability, and hospital inventory — so predictions learn from real usage, not just seed data. Surplus donated units restock the bank automatically. |
 | **Privacy by Default** | Patient names never appear in public or donor-facing views (only blood group, units, hospital, city, urgency). Staff record a private internal reference instead. Donor phone numbers are masked in the public directory and revealed only to the staff member who posted that specific request. |
@@ -58,8 +60,20 @@ npm run dev                # server on :5000, client on :5173
 
 Open http://localhost:5173 for the dashboard, then log in as the seeded admin (`03000000001` / `admin123`) to post requests, verify staff, and register replacement donors.
 
+### Environment variables
+
+Copy `server/.env.example` to `server/.env` (or set these in Vercel → Project → Settings → Environment Variables):
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `JWT_SECRET` | **Production: yes** | Long random string (32+ chars). The server refuses to start in production without it, so tokens can never be forged with a known default. |
+| `ADMIN_PASSWORD` | Production: recommended | Password for the seeded admin (`03000000001`). Without it, production generates a random one-time password on each cold start and logs it once. |
+| `ALLOWED_ORIGINS` | No | Comma-separated cross-origin frontends. Leave empty for same-origin only. |
+
+Rotating `JWT_SECRET` invalidates all existing sessions (users must log in again).
+
 - To reset demo data: stop the server, delete `server/data/bloodbridge-data.json`, restart — a fresh dataset (150 donors, 19 hospitals/blood banks, 90 days of demand history across 6 cities) is seeded automatically.
-- To run the API test suite: `cd server && node smoke-test.js` (server must be running).
+- To run the API test suite: `cd server && node smoke-test.js` (server must be running; uses `ADMIN_PASSWORD`, defaulting to `admin123` locally).
 
 ## API Overview
 
@@ -76,11 +90,12 @@ Open http://localhost:5173 for the dashboard, then log in as the seeded admin (`
 | `GET /api/donors` | Donor directory — masked phones, eligibility status, filters |
 | `POST /api/requests` | Create emergency request (verified staff only; feeds demand history) |
 | `GET /api/requests/my` | Staff's own requests with donor responses + health/eligibility flags |
+| `GET /api/requests` | Public request feed (no patient info) — used by the donor Requests page |
 | `POST /api/requests/:id/respond` | Donor responds to a request |
 | `GET /api/requests/:id/responses` | Donor responses with full contact (posting staff only) |
-| `PATCH /api/requests/:id/fulfill` | Close the loop: confirm donating donors → resting windows, inventory restock, demand records |
-| `POST /api/match/:requestId` | Run AI donor matching (verified staff; safety-filtered) |
-| `GET /api/match/:requestId` | Match results (re-ranked live, privacy-aware) |
+| `PATCH /api/requests/:id/fulfill` | Close the loop: confirm donating donors → resting windows, inventory restock, demand records (posting staff only) |
+| `POST /api/match/:requestId` | Run AI donor matching (posting staff only; safety-filtered) |
+| `GET /api/match/:requestId` | Match results (privacy-aware; only posting staff get full contact/flags) |
 | `GET /api/predictions` | 7-day demand forecast per city & blood group |
 | `GET /api/predictions/accuracy` | Backtested model accuracy (predicted vs actual, MAPE-based) |
 | `POST /api/chat` | Assistant chatbot |
@@ -88,3 +103,13 @@ Open http://localhost:5173 for the dashboard, then log in as the seeded admin (`
 ## Safety & Scope (honest limitations)
 
 Authentication, verification, health screening, and privacy controls are live in the product. Remaining for full production: a real database (the prototype uses in-memory storage, so serverless deployments re-seed on cold start), SMS/WhatsApp notifications, blood-unit expiry tracking (whole blood ~35-42 days, platelets ~5 days), hospital inventory integration via HL7/FHIR, and PDPA/HIPAA-style data governance. The statistical forecasting is intentionally transparent (moving average + trend) — accurate and explainable today, upgradeable to ARIMA/LSTM as real data volume grows.
+
+### Security notes
+
+- `JWT_SECRET` is mandatory in production; the old predictable fallback is gone. Tokens are re-validated against the user record on every request, so approvals/rejections take effect immediately.
+- Login, signup and chat endpoints are rate-limited (in-memory; use Redis/Upstash for multi-instance production).
+- Only the staff member who posted a request can run matching or fulfill it.
+- The public donor directory no longer exposes internal `userId`s or exact home coordinates; phone numbers stay masked.
+- Health screening answers are mandatory, and ages outside 18-65 are excluded from matching.
+- Public dashboard stats no longer include patient notes or internal references.
+

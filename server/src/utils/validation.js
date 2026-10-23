@@ -15,12 +15,24 @@ function str(v) {
   return typeof v === 'string' ? v.trim() : '';
 }
 
+/**
+ * Normalize Pakistani mobile numbers to 03XXXXXXXXX so the same number in
+ * different formats (+92 300-1234567 / 0300 1234567) cannot create duplicates.
+ */
+function normalizePhone(value) {
+  const compact = str(value).replace(/[\s-]/g, '');
+  if (compact.startsWith('+92')) return `0${compact.slice(3)}`;
+  if (compact.startsWith('92') && compact.length === 12) return `0${compact.slice(2)}`;
+  if (compact.startsWith('3') && compact.length === 10) return `0${compact}`;
+  return compact;
+}
+
 function validateBloodRequest(body = {}) {
   const errors = [];
   const patientName = str(body.patientName);
   const bloodGroup = str(body.bloodGroup);
   const urgencyLevel = str(body.urgencyLevel);
-  const contactNumber = str(body.contactNumber);
+  const contactNumber = body.contactNumber ? normalizePhone(body.contactNumber) : '';
   const notes = str(body.notes);
   const internalReference = str(body.internalReference);
   const unitsNeeded = Number(body.unitsNeeded);
@@ -53,7 +65,7 @@ function validateDonor(body = {}) {
   const errors = [];
   const name = str(body.name);
   const bloodGroup = str(body.bloodGroup);
-  const phone = str(body.phone);
+  const phone = normalizePhone(body.phone);
   const city = str(body.city);
   const area = str(body.area);
   const gender = str(body.gender) || 'male';
@@ -98,7 +110,7 @@ function validateDonor(body = {}) {
 function validateStaffSignup(body = {}) {
   const errors = [];
   const fullName = str(body.fullName);
-  const phone = str(body.phone);
+  const phone = normalizePhone(body.phone);
   const password = str(body.password);
   const institutionName = str(body.institutionName);
   const institutionLicenseNo = str(body.institutionLicenseNo);
@@ -106,7 +118,7 @@ function validateStaffSignup(body = {}) {
 
   if (fullName.length < 2 || fullName.length > 100) errors.push('Full name must be 2-100 characters.');
   if (!PHONE_REGEX.test(phone)) errors.push('Phone must be a valid Pakistani mobile number.');
-  if (password.length < 4) errors.push('Password must be at least 4 characters.');
+  if (password.length < 8) errors.push('Password must be at least 8 characters.');
   if (institutionName.length < 2) errors.push('Institution name is required.');
   if (institutionLicenseNo.length < 2) errors.push('Institution registration/license number is required.');
   if (!city) errors.push('City is required.');
@@ -121,7 +133,7 @@ function validateStaffSignup(body = {}) {
 function validateDonorSignup(body = {}) {
   const errors = [];
   const name = str(body.name);
-  const phone = str(body.phone);
+  const phone = normalizePhone(body.phone);
   const password = str(body.password);
   const bloodGroup = str(body.bloodGroup);
   const age = body.age !== undefined ? Number(body.age) : null;
@@ -132,7 +144,7 @@ function validateDonorSignup(body = {}) {
 
   if (name.length < 2 || name.length > 100) errors.push('Name must be 2-100 characters.');
   if (!PHONE_REGEX.test(phone)) errors.push('Phone must be a valid Pakistani mobile number.');
-  if (password.length < 4) errors.push('Password must be at least 4 characters.');
+  if (password.length < 8) errors.push('Password must be at least 8 characters.');
   if (!BLOOD_GROUPS.includes(bloodGroup)) errors.push(`Blood group must be one of: ${BLOOD_GROUPS.join(', ')}.`);
   if (age !== null && (!Number.isFinite(age) || age < 1 || age > 120)) errors.push('Age must be a valid number.');
   if (!city) errors.push('City is required.');
@@ -168,6 +180,7 @@ module.exports = {
   validateDonor,
   validateStaffSignup,
   validateDonorSignup,
+  normalizePhone,
   maskName,
   maskPhone,
 };

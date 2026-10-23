@@ -11,6 +11,7 @@ export default function DonorMatch() {
   const { isVerifiedStaff } = useAuth();
   const [data, setData] = useState(location.state?.matchResult || null);
   const [loading, setLoading] = useState(!data);
+  const [loadError, setLoadError] = useState(null);
   const [requestStatus, setRequestStatus] = useState('matched');
   const [donatedIds, setDonatedIds] = useState(new Set());
   const [fulfilling, setFulfilling] = useState(false);
@@ -27,6 +28,7 @@ export default function DonorMatch() {
   };
 
   const handleFulfill = async () => {
+    if (!isVerifiedStaff) return;
     setFulfilling(true);
     setFulfillError(null);
     try {
@@ -56,14 +58,17 @@ export default function DonorMatch() {
               area: md.donorId?.area || 'N/A',
               matchScore: md.matchScore,
               distance: md.distance,
+              etaMinutes: md.etaMinutes ?? (Number.isFinite(md.distance) ? Math.round((md.distance / 30) * 60) : null),
               rating: md.donorId?.rating || 0,
               recentlyRegistered: !!md.recentlyRegistered,
+              healthFlags: md.healthFlags || [],
+              eligibility: md.eligibility || null,
             })) || [],
-            totalCompatible: result.matchedDonors?.length || 0,
+            totalCompatible: result.totalCompatible ?? result.matchedDonors?.length ?? 0,
           });
           setRequestStatus(result.status || 'matched');
         })
-        .catch(console.error)
+        .catch((err) => setLoadError(err.message))
         .finally(() => setLoading(false));
     }
   }, [requestId, data]);
@@ -78,7 +83,14 @@ export default function DonorMatch() {
   }
 
   if (!data) {
-    return <div className="text-center text-red-500 py-10">Match results not found</div>;
+    return (
+      <div className="text-center py-10">
+        <p className="text-red-500">{loadError || 'Match results not found'}</p>
+        <Link to="/requests" className="text-sm text-red-600 hover:underline mt-3 inline-block">
+          Browse blood requests
+        </Link>
+      </div>
+    );
   }
 
   const { request, matches, totalCompatible } = data;
@@ -102,7 +114,7 @@ export default function DonorMatch() {
               {request?.hospitalArea && <span> · <span className="font-medium text-gray-700">{request.hospitalArea}</span></span>}
             </p>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-4">
             <div className="text-center">
               <div className="text-3xl font-bold text-red-600">{request?.bloodGroup}</div>
               <p className="text-xs text-gray-500">Blood Group</p>
@@ -161,8 +173,8 @@ export default function DonorMatch() {
         </div>
       </div>
 
-      {/* Fulfillment — closes the data loop */}
-      {requestStatus !== 'fulfilled' && matches?.length > 0 && (
+      {/* Fulfillment — only the posting hospital's staff may close the request */}
+      {requestStatus !== 'fulfilled' && matches?.length > 0 && isVerifiedStaff && (
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
           <h2 className="font-semibold text-gray-800 flex items-center gap-2">
             <CheckCircle2 className="w-5 h-5 text-green-600" />
@@ -236,7 +248,7 @@ export default function DonorMatch() {
         <div className="divide-y divide-gray-50">
           {matches?.map((donor, idx) => (
             <div key={idx} className="px-5 py-4 hover:bg-gray-50 transition-colors">
-              <div className="flex items-center gap-4">
+              <div className="flex flex-wrap items-center gap-4">
                 {/* Rank */}
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
                   idx === 0 ? 'bg-yellow-100 text-yellow-700' : idx === 1 ? 'bg-gray-100 text-gray-600' : idx === 2 ? 'bg-orange-100 text-orange-700' : 'bg-gray-50 text-gray-500'
@@ -262,7 +274,7 @@ export default function DonorMatch() {
                       <MapPin className="w-3 h-3" /> {donor.area}, {donor.city}
                     </span>
                     <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" /> {donor.etaMinutes || '~'} min ETA
+                      <Clock className="w-3 h-3" /> {donor.etaMinutes !== null && donor.etaMinutes !== undefined ? `${donor.etaMinutes} min ETA` : 'ETA unavailable'}
                     </span>
                     <span className="flex items-center gap-1">
                       <Star className="w-3 h-3" /> {donor.rating || 'N/A'}
@@ -280,7 +292,7 @@ export default function DonorMatch() {
                   <p className="text-xs text-gray-500">{donor.distance} km</p>
                 </div>
 
-                {requestStatus !== 'fulfilled' && (
+                {requestStatus !== 'fulfilled' && isVerifiedStaff && (
                   <a
                     href={`tel:${donor.phone}`}
                     className="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition-colors"

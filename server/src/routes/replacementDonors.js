@@ -7,34 +7,47 @@
  * for future matching.
  */
 const express = require('express');
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const db = require('../store');
 const { authenticateToken, requireVerifiedStaff } = require('../middleware/auth');
-const { PHONE_REGEX, BLOOD_GROUPS } = require('../utils/validation');
+const { PHONE_REGEX, BLOOD_GROUPS, normalizePhone } = require('../utils/validation');
 const { cityCoords } = require('../utils/geo');
 
 const router = express.Router();
+const GENDERS = ['male', 'female', 'other'];
 
 // POST /api/replacement-donors
 router.post('/', authenticateToken, requireVerifiedStaff, async (req, res) => {
   try {
-    const { name, phone, bloodGroup, age, city, gender } = req.body || {};
+    const { name, bloodGroup, age, city, gender } = req.body || {};
+    const phone = normalizePhone(req.body?.phone);
     const errors = [];
 
     if (!name || name.trim().length < 2) errors.push('Name is required (2+ characters).');
     if (!phone || !PHONE_REGEX.test(phone)) errors.push('Valid phone number is required.');
     if (!BLOOD_GROUPS.includes(bloodGroup)) errors.push(`Blood group must be one of: ${BLOOD_GROUPS.join(', ')}.`);
     if (!city) errors.push('City is required.');
-    if (age !== undefined && (Number(age) < 1 || Number(age) > 120)) errors.push('Age must be valid.');
+    if (gender !== undefined && !GENDERS.includes(gender)) errors.push('Gender must be male, female, or other.');
+    if (age !== undefined && age !== null && (Number(age) < 18 || Number(age) > 65)) {
+      errors.push('Donor age must be between 18 and 65.');
+    }
 
     if (errors.length) return res.status(400).json({ error: errors.join(' ') });
+
+    // One phone number = one account/donor record.
+    if (db.users.data.some(u => u.phone === phone) || db.donors.data.some(d => d.phone === phone)) {
+      return res.status(409).json({ error: 'A donor with this phone number already exists.' });
+    }
 
     // Look up the staff member's institution
     const staffUser = db.users.data.find(u => u._id === req.user.userId);
     const institutionName = staffUser?.institutionName || 'Unknown Institution';
 
-    // Create a user account for the replacement donor (auto-generated password)
-    const autoPassword = `donor${Date.now().toString(36)}`;
+    // Create a user account for the replacement donor with an unguessable
+    // random password (it is never returned or shown, so the account cannot
+    // be taken over by guessing a timestamp-based value).
+    const autoPassword = crypto.randomBytes(24).toString('base64url');
     const hashedPassword = await bcrypt.hash(autoPassword, 10);
 
     const user = {
@@ -66,7 +79,9 @@ router.post('/', authenticateToken, requireVerifiedStaff, async (req, res) => {
       isAvailable: true,
       rating: 4.0,
       totalDonations: 0,
-      healthScreening: null, // No health screening for replacement donors (done in person)
+      // No questionnaire was completed: staff must screen the donor in person.
+      // computeHealthFlags() surfaces this as a staff-only warning.
+      healthScreening: null,
       source: `replacement donor via ${institutionName}`,
       registeredBy: req.user.userId,
       createdAt: new Date(),

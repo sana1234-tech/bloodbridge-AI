@@ -21,10 +21,11 @@ router.get('/accuracy', async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const { city, bloodGroup, days } = req.query;
+    const daysAhead = Math.min(Math.max(parseInt(days, 10) || 7, 1), 30);
     const predictions = await predictDemand(
       city || null,
       bloodGroup || null,
-      days ? parseInt(days) : 7
+      daysAhead
     );
     res.json(predictions);
   } catch (err) {
