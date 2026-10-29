@@ -18,7 +18,8 @@ export default function MyRequests() {
   const toggle = (id) => {
     setExpanded((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
@@ -67,7 +68,7 @@ export default function MyRequests() {
                           <AlertTriangle className="w-3 h-3" /> {req.urgencyLevel}
                         </span>
                         <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" /> {new Date(req.createdAt).toLocaleDateString()}
+                          <Clock className="w-3 h-3" /> {new Date(req.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                         </span>
                         <StatusBadge status={req.status} />
                       </div>
@@ -128,7 +129,7 @@ export default function MyRequests() {
                                 <span>{resp.donorCity}</span>
                               </div>
                               <div className="text-xs text-gray-400 mt-1">
-                                Responded: {new Date(resp.respondedAt).toLocaleString()}
+                                Responded: {new Date(resp.respondedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                 {resp.daysSinceLastDonation !== null && ` | Last donated ${resp.daysSinceLastDonation} days ago`}
                               </div>
                             </div>

@@ -2,9 +2,11 @@
  * Health screening questionnaire processing for BloodBridge AI.
  *
  * Donors answer 8 yes/no questions during registration. Any "yes" answer,
- * age outside 18-65, or last donation within 90 days generates a flag that
- * is shown ONLY to hospital staff — never to the donor themselves.
+ * age outside 18-65, or last donation inside the resting window generates a
+ * flag that is shown ONLY to hospital staff.
  */
+
+const { requiredGapDays } = require('./eligibility');
 
 const SCREENING_QUESTIONS = [
   { key: 'fever', question: 'Do you currently have a fever, infection, or feel unwell?' },
@@ -38,8 +40,9 @@ function validateHealthScreening(body = {}) {
   for (const q of SCREENING_QUESTIONS) {
     const val = body[q.key];
     if (val === undefined || val === null) {
-      // Allow missing answers — default to false (no flag)
-      screening[q.key] = false;
+      // Every question must be answered: a missing answer must never be
+      // treated as a "no" (that would let donors skip the screening entirely).
+      errors.push(`Please answer the health screening question "${q.key}".`);
     } else if (typeof val === 'boolean') {
       screening[q.key] = val;
     } else if (val === 'yes' || val === 'true' || val === 1) {
@@ -62,12 +65,17 @@ function computeHealthFlags(donor) {
   const flags = [];
 
   // Health screening flags
-  if (donor.healthScreening) {
+  const hasCompleteScreening = donor.healthScreening
+    && SCREENING_QUESTIONS.every(q => typeof donor.healthScreening[q.key] === 'boolean');
+
+  if (hasCompleteScreening) {
     for (const [key, val] of Object.entries(donor.healthScreening)) {
       if (val && FLAG_LABELS[key]) {
         flags.push(FLAG_LABELS[key]);
       }
     }
+  } else {
+    flags.push('No complete pre-screening on record — screen in person before donation');
   }
 
   // Age flag
@@ -78,11 +86,12 @@ function computeHealthFlags(donor) {
     }
   }
 
-  // 90-day donation gap flag (softer than the hard eligibility filter)
+  // Resting-window flag (gender-specific; matching already hard-excludes these)
   if (donor.lastDonationDate) {
     const daysSince = Math.floor((Date.now() - new Date(donor.lastDonationDate).getTime()) / 86400000);
-    if (Number.isFinite(daysSince) && daysSince < 90) {
-      flags.push(`Donated ${daysSince} days ago — may not yet be eligible`);
+    const gap = requiredGapDays(donor.gender);
+    if (Number.isFinite(daysSince) && daysSince < gap) {
+      flags.push(`Donated ${daysSince} days ago — ${gap}-day resting window not complete`);
     }
   }
 

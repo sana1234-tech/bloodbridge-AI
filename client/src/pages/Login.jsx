@@ -108,12 +108,6 @@ export default function Login() {
                 <Link to="/signup/donor" className="text-red-600 hover:underline font-medium">Register as Donor</Link>
               )}
             </div>
-
-            {form.role === 'staff' && (
-              <p className="text-xs text-center text-gray-400 mt-2">
-                Demo admin: 03000000001 / admin123
-              </p>
-            )}
           </form>
         </div>
       </div>

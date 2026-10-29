@@ -35,7 +35,7 @@ export default function SignupDonor() {
   const update = (field, value) => setForm((p) => ({ ...p, [field]: value }));
   const updateScreening = (key, value) => setScreening((p) => ({ ...p, [key]: value }));
 
-  const canNextStep1 = form.name.trim().length >= 2 && form.phone && form.password.length >= 4
+  const canNextStep1 = form.name.trim().length >= 2 && form.phone && form.password.length >= 8
     && form.bloodGroup && form.city;
   const canNextStep2 = HEALTH_QUESTIONS.every((q) => screening[q.key] !== null);
 
@@ -103,7 +103,7 @@ export default function SignupDonor() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
                     <input type="password" value={form.password} onChange={(e) => update('password', e.target.value)}
                       className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-green-500 outline-none"
-                      placeholder="4+ characters" required />
+                      placeholder="8+ characters" minLength={8} required />
                   </div>
                 </div>
                 <div>

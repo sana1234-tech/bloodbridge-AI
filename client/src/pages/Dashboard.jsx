@@ -15,7 +15,7 @@ const BLOOD_COLORS = {
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
-  const { isVerifiedStaff, user } = useAuth();
+  const { isVerifiedStaff } = useAuth();
 
   useEffect(() => {
     api.getStats().then(setStats).catch(console.error).finally(() => setLoading(false));
@@ -72,9 +72,9 @@ export default function Dashboard() {
             <Droplets className="w-5 h-5 text-red-500" />
             Blood Inventory (All Banks)
           </h2>
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {Object.entries(stats.totalInventory || {}).map(([bg, units]) => (
-              <div key={bg} className="text-center">
+              <div key={bg} className="text-center min-w-0">
                 <div
                   className="text-2xl font-bold rounded-lg py-2 text-white"
                   style={{ backgroundColor: BLOOD_COLORS[bg] }}
@@ -103,16 +103,16 @@ export default function Dashboard() {
           </h2>
           <div className="space-y-3">
             {(stats.donorsByCity || []).map(({ _id, count, available }) => (
-              <div key={_id} className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-gray-400" />
+              <div key={_id} className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
                   <span className="text-sm font-medium text-gray-700">{_id}</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                  <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full whitespace-nowrap">
                     {available} available
                   </span>
-                  <span className="text-sm text-gray-500">{count} total</span>
+                  <span className="text-sm text-gray-500 whitespace-nowrap">{count} total</span>
                 </div>
               </div>
             ))}
@@ -161,20 +161,31 @@ export default function Dashboard() {
                       <StatusBadge status={req.status} />
                     </td>
                     <td className="py-2.5 px-2">
-                      {req.status === 'pending' && (
+                      {isVerifiedStaff ? (
+                        <>
+                          {req.status === 'pending' && (
+                            <Link
+                              to={`/match/${req._id}`}
+                              className="text-red-600 hover:text-red-700 text-xs font-medium"
+                            >
+                              Run AI Match
+                            </Link>
+                          )}
+                          {req.status === 'matched' && (
+                            <Link
+                              to={`/match/${req._id}`}
+                              className="text-blue-600 hover:text-blue-700 text-xs font-medium"
+                            >
+                              View Match
+                            </Link>
+                          )}
+                        </>
+                      ) : (
                         <Link
-                          to={`/match/${req._id}`}
+                          to="/requests"
                           className="text-red-600 hover:text-red-700 text-xs font-medium"
                         >
-                          Run AI Match
-                        </Link>
-                      )}
-                      {req.status === 'matched' && (
-                        <Link
-                          to={`/match/${req._id}`}
-                          className="text-blue-600 hover:text-blue-700 text-xs font-medium"
-                        >
-                          View Match
+                          View requests
                         </Link>
                       )}
                     </td>
@@ -189,7 +200,14 @@ export default function Dashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid md:grid-cols-3 gap-4">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <QuickAction
+          to="/requests"
+          icon={Heart}
+          title="Blood Requests"
+          desc="See live requests and respond as a donor"
+          color="red"
+        />
         {isVerifiedStaff && (
           <QuickAction
             to="/request"
@@ -227,7 +245,7 @@ function StatCard({ icon: Icon, label, value, color, badge }) {
   };
 
   return (
-    <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+    <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 min-w-0">
       <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${colors[color]} mb-3`}>
         <Icon className="w-5 h-5" />
       </div>

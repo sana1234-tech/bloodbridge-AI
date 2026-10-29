@@ -84,7 +84,7 @@ export default function VerificationPanel() {
                     License/Reg No: <span className="font-mono font-medium text-gray-600">{staff.institutionLicenseNo}</span>
                   </div>
                   <div className="text-xs text-gray-400 mt-1">
-                    Phone: {staff.phone} | Applied: {new Date(staff.createdAt).toLocaleDateString()}
+                    Phone: {staff.phone} | Applied: {new Date(staff.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                   </div>
                 </div>
                 <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-medium">

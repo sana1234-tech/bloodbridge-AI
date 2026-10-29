@@ -1,15 +1,16 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Droplets, LayoutDashboard, AlertTriangle, Users, Building2, BarChart3, Activity, ShieldCheck, FileText, UserPlus, LogOut, LogIn, AlertCircle } from 'lucide-react';
+import { Droplets, LayoutDashboard, AlertTriangle, Users, Building2, BarChart3, ShieldCheck, FileText, UserPlus, LogOut, LogIn, AlertCircle, Heart } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, isVerifiedStaff, isPendingStaff, isDonor, logout } = useAuth();
+  const { user, isVerifiedStaff, isPendingStaff, logout } = useAuth();
 
   // Base nav items visible to everyone
   const navItems = [
     { path: '/', label: 'Dashboard', icon: LayoutDashboard },
+    { path: '/requests', label: 'Requests', icon: Heart },
     { path: '/donors', label: 'Donors', icon: Users },
     { path: '/hospitals', label: 'Hospitals', icon: Building2 },
     { path: '/analytics', label: 'AI Predictions', icon: BarChart3 },

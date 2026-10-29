@@ -27,6 +27,17 @@ function donorEligibility(donor) {
   if (!donor.isAvailable) {
     return { eligible: false, reason: 'Donor has paused availability', daysSinceLastDonation: days, requiredGapDays: gap };
   }
+  if (donor.age !== undefined && donor.age !== null) {
+    const age = Number(donor.age);
+    if (Number.isFinite(age) && (age < 18 || age > 65)) {
+      return {
+        eligible: false,
+        reason: `Age ${age} is outside the 18-65 donation range`,
+        daysSinceLastDonation: days,
+        requiredGapDays: gap,
+      };
+    }
+  }
   if (days === null) {
     return { eligible: true, reason: 'No recent donation on record', daysSinceLastDonation: null, requiredGapDays: gap };
   }

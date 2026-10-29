@@ -145,6 +145,13 @@ export default function Analytics() {
         </div>
       </div>
 
+      {predictions.length === 0 && (
+        <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-lg text-sm">
+          No real demand history yet. Forecasts will appear after emergency requests are
+          posted and fulfilled — the model only learns from actual usage.
+        </div>
+      )}
+
       {/* Demand vs Fulfillment Line Chart */}
       <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
         <h2 className="font-semibold text-gray-800 mb-4">Demand vs Fulfillment (Next 7 Days)</h2>

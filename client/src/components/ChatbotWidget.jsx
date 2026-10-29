@@ -38,7 +38,7 @@ export default function ChatbotWidget() {
         ...prev,
         { role: 'bot', text: response.text, suggestions: response.suggestions },
       ]);
-    } catch (err) {
+    } catch {
       setMessages((prev) => [
         ...prev,
         { role: 'bot', text: 'Sorry, I encountered an error. Please try again.', suggestions: ['Find a donor', 'Check inventory'] },

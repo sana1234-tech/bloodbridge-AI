@@ -144,7 +144,7 @@ function processMessage(message) {
 
     case 'stats':
       return {
-        text: `BloodBridge AI Statistics:\n\nTotal Donors: ${db.donors.data.length}\nAvailable Donors: ${db.donors.data.filter(d => d.isAvailable).length}\nHospitals & Blood Banks: ${db.hospitals.data.length}\nActive Requests: ${db.bloodRequests.data.filter(r => r.status === 'pending' || r.status === 'matched').length}\n\nOur AI has processed thousands of matches across Pakistan!`,
+        text: `BloodBridge AI Statistics:\n\nTotal Donors: ${db.donors.data.length}\nAvailable Donors: ${db.donors.data.filter(d => d.isAvailable).length}\nHospitals & Blood Banks: ${db.hospitals.data.length}\nActive Requests: ${db.bloodRequests.data.filter(r => r.status === 'pending' || r.status === 'matched').length}\nRequests recorded: ${db.bloodRequests.data.length}`,
         suggestions: ['Find donors', 'Check inventory', 'View dashboard'],
       };
 

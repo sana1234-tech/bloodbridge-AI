@@ -7,8 +7,21 @@
  *   - donor: can browse, respond to requests
  */
 const jwt = require('jsonwebtoken');
+const db = require('../store');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'bloodbridge-dev-secret';
+// Fail closed: a predictable fallback secret in production would let anyone
+// forge a valid staff/admin token. The default is only allowed for local dev.
+const isProduction = process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL);
+const JWT_SECRET = process.env.JWT_SECRET || (isProduction ? null : 'bloodbridge-dev-secret');
+
+if (!JWT_SECRET) {
+  throw new Error(
+    'JWT_SECRET is required in production. Set it in your environment before starting the server.'
+  );
+}
+if (isProduction && JWT_SECRET.length < 32) {
+  console.warn('[security] JWT_SECRET is shorter than 32 characters. Use a long random value.');
+}
 
 function signToken(user) {
   return jwt.sign(
@@ -22,7 +35,7 @@ function signToken(user) {
   );
 }
 
-/** Verify JWT and attach user payload to req.user */
+/** Verify JWT and attach the *fresh* user record to req.user */
 function authenticateToken(req, res, next) {
   const header = req.headers.authorization;
   if (!header || !header.startsWith('Bearer ')) {
@@ -31,7 +44,17 @@ function authenticateToken(req, res, next) {
 
   const token = header.slice(7);
   try {
-    req.user = jwt.verify(token, JWT_SECRET);
+    const payload = jwt.verify(token, JWT_SECRET);
+    // Never trust role/verificationStatus from the token alone: re-read the
+    // user so approvals, rejections and deletions take effect immediately.
+    const user = db.users.data.find(u => u._id === payload.userId);
+    if (!user) return res.status(401).json({ error: 'Account no longer exists.' });
+
+    req.user = {
+      userId: user._id,
+      role: user.role,
+      verificationStatus: user.verificationStatus || null,
+    };
     next();
   } catch {
     return res.status(401).json({ error: 'Invalid or expired token.' });
@@ -43,7 +66,15 @@ function optionalAuth(req, res, next) {
   const header = req.headers.authorization;
   if (header && header.startsWith('Bearer ')) {
     try {
-      req.user = jwt.verify(header.slice(7), JWT_SECRET);
+      const payload = jwt.verify(header.slice(7), JWT_SECRET);
+      const user = db.users.data.find(u => u._id === payload.userId);
+      if (user) {
+        req.user = {
+          userId: user._id,
+          role: user.role,
+          verificationStatus: user.verificationStatus || null,
+        };
+      }
     } catch {
       // ignore invalid tokens
     }

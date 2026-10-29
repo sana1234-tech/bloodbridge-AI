@@ -1,23 +1,42 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../store');
-const { validateDonor, maskPhone } = require('../utils/validation');
+const { maskPhone } = require('../utils/validation');
 const { donorEligibility } = require('../services/eligibility');
 const { optionalAuth } = require('../middleware/auth');
 const { computeHealthFlags } = require('../services/healthScreening');
 
-// Public donor view: phone numbers are masked — real contact details are only
-// revealed through the AI matching process for an active request.
+function roundCoord(value) {
+  return Number.isFinite(value) ? Math.round(value * 100) / 100 : null;
+}
+
+// Public donor view: phone numbers are masked and exact home coordinates are
+// reduced to ~1 km precision. The internal userId is never exposed.
+// Real contact details are only revealed through the matching process for an
+// active request, to the staff member who posted it.
 function publicDonorView(donor, isStaff = false) {
   const view = {
-    ...donor,
+    _id: donor._id,
+    name: donor.name,
+    bloodGroup: donor.bloodGroup,
     phone: maskPhone(donor.phone),
+    gender: donor.gender,
+    age: donor.age ?? null,
+    city: donor.city,
+    area: donor.area,
+    lat: roundCoord(donor.lat),
+    lng: roundCoord(donor.lng),
+    lastDonationDate: donor.lastDonationDate,
+    isAvailable: donor.isAvailable,
+    rating: donor.rating,
+    totalDonations: donor.totalDonations || 0,
+    source: donor.source,
+    createdAt: donor.createdAt,
     eligibility: donorEligibility(donor),
   };
   // Health screening and flags are staff-only
-  if (!isStaff) {
-    delete view.healthScreening;
-  } else {
+  if (isStaff) {
+    view.healthScreening = donor.healthScreening || null;
     view.healthFlags = computeHealthFlags(donor);
   }
   return view;
@@ -26,7 +45,9 @@ function publicDonorView(donor, isStaff = false) {
 // GET /api/donors
 router.get('/', optionalAuth, async (req, res) => {
   try {
-    const { city, bloodGroup, available, eligible, page = 1, limit = 20 } = req.query;
+    const { city, bloodGroup, available, eligible } = req.query;
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
     let results = [...db.donors.data];
 
     if (city) results = results.filter(d => d.city === city);
@@ -36,16 +57,16 @@ router.get('/', optionalAuth, async (req, res) => {
 
     const total = results.length;
     results.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    const paginated = results.slice(skip, skip + parseInt(limit));
+    const skip = (page - 1) * limit;
+    const paginated = results.slice(skip, skip + limit);
 
     const isStaff = req.user && req.user.role === 'staff' && req.user.verificationStatus === 'verified';
 
     res.json({
       donors: paginated.map(d => publicDonorView(d, isStaff)),
       total,
-      page: parseInt(page),
-      totalPages: Math.ceil(total / parseInt(limit)),
+      page,
+      totalPages: Math.ceil(total / limit),
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -58,28 +79,6 @@ router.get('/:id', optionalAuth, (req, res) => {
   if (!donor) return res.status(404).json({ error: 'Donor not found' });
   const isStaff = req.user && req.user.role === 'staff' && req.user.verificationStatus === 'verified';
   res.json(publicDonorView(donor, isStaff));
-});
-
-// POST /api/donors (legacy endpoint, kept for seed compatibility)
-router.post('/', async (req, res) => {
-  try {
-    const { errors, sanitized } = validateDonor(req.body || {});
-    if (errors.length) return res.status(400).json({ error: errors.join(' ') });
-
-    const donor = {
-      ...sanitized,
-      _id: `d${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      rating: 4.0,
-      totalDonations: 0,
-      source: 'legacy-api',
-    };
-    db.donors.data.push(donor);
-    res.status(201).json(donor);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
 });
 
 module.exports = router;
